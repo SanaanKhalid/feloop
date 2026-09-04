@@ -1,0 +1,37 @@
+---
+title: Security and privacy
+description: Protect sensitive production evidence and keep optimization authority bounded.
+---
+
+A feedback store can contain production inputs, model outputs, human corrections, and downstream outcomes. Treat it as a sensitive system of record.
+
+## Minimum controls
+
+1. Redact secrets, credentials, and unnecessary personal data before capture.
+2. Use pseudonymous entity identifiers and store re-identification maps elsewhere.
+3. Separate observability retention from training consent and training retention.
+4. Restrict raw payload access; prefer aggregate findings and redacted samples.
+5. Version models, prompts, policies, authorizers, and application releases.
+6. Authenticate correction sources and validate their authority.
+7. Never let user-controlled content directly rewrite prompts, rules, schemas, or training sets.
+8. Sign or authenticate deployable artifact versions and deployment events.
+9. Keep authorization, tool allowlists, risk policy, and evaluator code outside the learned artifact.
+
+## Threat model
+
+| Threat | Example | Controls |
+| --- | --- | --- |
+| Feedback poisoning | Coordinated false ratings | Source trust, rate limits, entity breadth, anomaly detection, verified outcomes, review |
+| Prompt injection | Transcript contains deployment instructions | Data-only parsing, structured proposals, isolated generation, policy gates, no ambient credentials |
+| Cross-tenant leakage | Evidence or candidate crosses a namespace | Core namespace validation, row-level authorization, namespace-scoped deployment |
+| Unsafe optimization | Latency improves by skipping safety checks | Independent hard constraints that cannot be traded away |
+| Runaway changes | Optimizer repeatedly applies variants | Candidate budgets, stable deduplication, risk ceilings, rollout limits, cooldowns, stop switch |
+| Evaluator capture | Proposer weakens the test that judges it | Independent evaluator ownership and separate candidate lifecycle |
+
+## Regulated and high-impact use
+
+For medical, employment, credit, legal, safety, or other high-impact decisions, retain accountable qualified humans, validate applicable regulatory obligations, and use domain-specific evaluation and monitoring. The framework alone is not evidence that a system is safe or compliant.
+
+## Data deletion and training provenance
+
+Every training record should retain a reference to its source evidence, validation state, consent basis, redaction version, and dataset manifests. This enables later exclusion, erasure, or relabeling without reconstructing the entire pipeline.

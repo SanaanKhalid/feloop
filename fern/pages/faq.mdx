@@ -1,0 +1,72 @@
+---
+title: Common pitfalls and FAQ
+description: Avoid weak feedback, evaluation leakage, unsafe automation, and deployment-state mistakes.
+---
+
+## Common pitfalls
+
+### Optimizing thumbs-up rate alone
+
+Pair preference with correctness, durable resolution, safety, cost, and long-term outcomes.
+
+### Treating every correction as truth
+
+Verify source authority and look for consensus or downstream success.
+
+### Ignoring artifact versions
+
+Without exact model, prompt, router, knowledge, policy, tool schema, and application versions, attribution becomes guesswork.
+
+### Creating tiny segments
+
+Require support, recurrence, entity breadth, and meaningful effect before action.
+
+### Leaking discovery data into evaluation
+
+Use separate counterexamples, evaluation data, and frozen holdouts.
+
+### Recording deployment before it succeeds
+
+Call the external adapter first. Record deployed state only after success.
+
+### Starting in apply mode
+
+Build evidence quality and evaluator trust in observe, recommend, and experiment first.
+
+### Letting the optimizer change its guardrails
+
+Keep authorization, evaluators, permissions, risk policy, and deployment controls in an independent trust boundary.
+
+## Frequently asked questions
+
+### Is this an observability platform?
+
+No. It stores the minimum durable contracts needed for improvement and should export to the observability stack you already use.
+
+### Does it automatically fine-tune a model?
+
+No provider is built into the core. A recipe can create a dataset or model candidate, an evaluator can run training and validation, and a deployer can promote the result.
+
+### Can it improve itself automatically?
+
+Yes, within explicit boundaries. Apply mode can turn evidence into a proposal, evaluate it, enforce metric and risk policy, invoke a deployer, and record the result. High-impact or weakly evaluated changes should remain human-approved.
+
+### Does it work for conventional machine learning?
+
+Yes. A prediction is an execution, a later label or sensor result is a signal, and a feature, threshold, dataset, or model version is a candidate.
+
+### Is it lightweight?
+
+Yes. The core has no required runtime model provider, service, queue, vector database, or hosted control plane. Production teams add only the adapters they need.
+
+### How does it fit an operations chatbot?
+
+Record each assistant turn with task, route, model, prompt, policy, and application versions. Attach operator corrections and ticket outcomes. Analyze recurring task and route segments. Propose prompt, retrieval, routing, rule, or model changes, then replay them before a controlled rollout.
+
+### What is the first safe production milestone?
+
+Instrument one high-value workflow in observe mode, capture verified outcomes, and prove attribution quality. Add recommendation and replay only after the data is trustworthy.
+
+### Why are namespaces mandatory?
+
+They form the client or environment boundary across executions, signals, findings, and candidates. Production storage and deployers must enforce the same boundary.

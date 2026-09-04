@@ -1,0 +1,78 @@
+---
+title: Executions and episodes
+description: Capture simple model calls and complete hierarchical agent traces.
+---
+
+An execution represents one observable operation performed by an AI-enabled system.
+
+## Execution kinds
+
+- <code>agent</code>
+- <code>turn</code>
+- <code>inference</code>
+- <code>prediction</code>
+- <code>tool</code>
+- <code>workflow</code>
+- <code>retrieval</code>
+- <code>custom</code>
+
+## Fields
+
+| Field | Required | Purpose |
+| --- | --- | --- |
+| namespace | yes | Tenant, client, product, or environment isolation boundary |
+| kind | yes | Execution category |
+| episodeId | no | Joins an entire conversation, task, ticket, meal, prediction cycle, or incident |
+| parentExecutionId | no | Connects a child tool, retrieval, inference, workflow, or agent to its caller |
+| entityId | no | Pseudonymous user, operator, device, account, or workflow identity |
+| input and output | no | JSON-safe, already-redacted application payloads |
+| artifacts | no | Exact model, dataset, prompt, router, tool schema, knowledge, policy, and application versions |
+| metadata | no | Structured dimensions such as task, route, language, latency, cost, resource, or retry count |
+| startedAt and completedAt | no | ISO timestamps; generated when omitted |
+
+## Hierarchical traces
+
+~~~ts
+const root = await loop.recordExecution({
+  namespace: "acme/prod",
+  kind: "agent",
+  episodeId: "incident-1042",
+  metadata: { agentRole: "orchestrator" },
+});
+
+const child = await loop.recordExecution({
+  namespace: root.namespace,
+  kind: "agent",
+  episodeId: root.episodeId,
+  parentExecutionId: root.id,
+  metadata: { agentRole: "ticket-researcher" },
+});
+
+const tool = await loop.recordExecution({
+  namespace: root.namespace,
+  kind: "tool",
+  episodeId: root.episodeId,
+  parentExecutionId: child.id,
+  metadata: {
+    resource: "ticket-api",
+    queueWaitMs: 840,
+  },
+});
+
+await loop.completeExecution(tool.id, {
+  output: { status: "success" },
+  metadata: { durationMs: 1120 },
+});
+~~~
+
+When a parent is supplied, FeedbackLoop requires that it exist and use the same namespace. When both parent and child include an episode ID, those IDs must also match.
+
+## Capture guidance
+
+Capture observable inputs, decisions, extracted fields, selected routes, retrieval identifiers, approval results, sanitized tool arguments, structured outputs, errors, duration, cost, and artifact versions.
+
+Do not capture hidden chain-of-thought. Store the minimum structured evidence needed for attribution, replay, analysis, and auditing.
+
+## Failure capture
+
+Complete failed executions too. Store a structured error class, retryability, stage, duration, and sanitized diagnostic metadata. Otherwise, the dataset over-represents successful work and hides operational bottlenecks.

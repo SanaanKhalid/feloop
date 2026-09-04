@@ -1,0 +1,30 @@
+:root {
+  --feedbackloop-signal: #5d8f00;
+}
+
+.dark {
+  --feedbackloop-signal: #c6ff59;
+}
+
+#fern-header {
+  border-bottom-width: 1px;
+}
+
+.fern-card,
+pre {
+  border-radius: 0 !important;
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.035em;
+}
+
+a {
+  text-underline-offset: 3px;
+}
+
+code {
+  font-variant-ligatures: none;
+}

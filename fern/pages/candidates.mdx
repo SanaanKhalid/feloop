@@ -1,0 +1,63 @@
+---
+title: Improvement candidates
+description: Represent proposed changes as versioned, evidence-backed, risk-classified records.
+---
+
+A finding says where behavior differs. A candidate says exactly what should change, why, how risky it is, and whether it has passed evaluation.
+
+## Target kinds
+
+<code>prompt</code>, <code>routing</code>, <code>rule</code>, <code>retrieval</code>, <code>model</code>, <code>dataset</code>, <code>threshold</code>, <code>tool_schema</code>, <code>workflow</code>, <code>agent_topology</code>, <code>code</code>, <code>capacity</code>, and <code>custom</code>.
+
+## Candidate fields
+
+| Field | Purpose |
+| --- | --- |
+| target.kind | Change surface |
+| target.key | Stable logical identity, separate from a version |
+| proposedChange | JSON-safe patch, version descriptor, training specification, or structured plan |
+| evidence | Finding, examples, replay set, metrics, and provenance |
+| risk | Low, medium, high, or critical; defaults to medium |
+| metadata | Owner, recipe, experiment, expiration, or governance data |
+| evaluations | Append-only evaluator results |
+| status | Proposed, evaluated, approved, deployed, rejected, or superseded |
+
+## Create from a finding
+
+~~~ts
+const candidate = await loop.createCandidateFromFinding({
+  finding,
+  target: { kind: "prompt", key: "support-core" },
+  proposedChange: {
+    from: "support-core@18",
+    to: "support-core@19",
+    instruction:
+      "Separate disabling MFA from deleting registered authentication methods.",
+  },
+  risk: "medium",
+  metadata: {
+    owner: "ai-platform",
+    expiresAt: "2026-10-01T00:00:00.000Z",
+  },
+});
+~~~
+
+## Lifecycle invariants
+
+- Only a candidate whose latest evaluation passed can be approved.
+- Only an approved candidate can be marked deployed.
+- Deploying supersedes the currently deployed candidate with the same namespace, target kind, and target key.
+- A deployed candidate is rolled back, not rejected.
+- Rollback restores the most recently superseded version when one exists.
+- Rejected, deployed, and superseded candidates cannot be evaluated again.
+
+## Risk classification
+
+Classify risk from the maximum credible impact, not the expected impact.
+
+| Risk | Typical examples |
+| --- | --- |
+| low | Reversible read-only route weight, bounded cache, low-blast-radius prompt canary |
+| medium | Prompt behavior change, retrieval source change, workflow ordering |
+| high | New model checkpoint, dataset update, mutating tool selection, agent topology |
+| critical | Authorization, identity, safety policy, medical or financial action, control-plane modification |

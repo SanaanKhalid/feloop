@@ -1,0 +1,76 @@
+---
+title: Storage adapters
+description: Use the built-in stores locally and implement the small FeedbackStore interface for production.
+---
+
+The core depends on a small storage interface so the same lifecycle can run in tests, local tools, and production systems.
+
+## Built-in stores
+
+| Store | Intended use |
+| --- | --- |
+| InMemoryStore | Unit tests, examples, and disposable process-local experiments |
+| JsonFileStore | Local development and single-process demonstrations |
+
+The JSON store is not designed for concurrent writers or distributed production workloads.
+
+## Interface
+
+~~~ts
+interface FeedbackStore {
+  saveExecution(value: AiExecution): Promise<void>;
+  getExecution(id: string): Promise<AiExecution | undefined>;
+  listExecutions(options?: ExecutionListOptions): Promise<AiExecution[]>;
+
+  saveSignal(value: FeedbackSignal): Promise<void>;
+  listSignals(options?: SignalListOptions): Promise<FeedbackSignal[]>;
+
+  saveCandidate(value: AdaptationCandidate): Promise<void>;
+  getCandidate(id: string): Promise<AdaptationCandidate | undefined>;
+  listCandidates(
+    options?: CandidateListOptions,
+  ): Promise<AdaptationCandidate[]>;
+
+  close(): Promise<void>;
+}
+~~~
+
+## Production requirements
+
+- Enforce unique IDs and atomic upserts.
+- Index namespace plus time for execution and signal queries.
+- Index namespace, target key, and status for candidate operations.
+- Preserve JSON values without lossy serialization.
+- Use optimistic concurrency or transactions around candidate transitions.
+- Encrypt data in transit and at rest.
+- Enforce namespace-scoped authorization in every query and mutation.
+- Support retention, export, erasure, and audit requirements.
+
+## Suggested relational shape
+
+~~~sql
+executions(
+  id, namespace, kind, episode_id, parent_execution_id,
+  entity_id, input_json, output_json, artifacts_json,
+  metadata_json, started_at, completed_at, created_at, updated_at
+)
+
+signals(
+  id, namespace, execution_id, episode_id, kind, name,
+  value_json, correction_json, source, confidence,
+  metadata_json, observed_at, created_at
+)
+
+candidates(
+  id, namespace, target_kind, target_key,
+  proposed_change_json, evidence_json, risk, status,
+  metadata_json, lifecycle_timestamps
+)
+
+evaluations(
+  id, candidate_id, passed, metrics_json,
+  notes, evaluator, created_at
+)
+~~~
+
+For high-throughput capture, put a durable queue or streaming sink in front of the adapter. Do not block the user request path on pattern analysis.

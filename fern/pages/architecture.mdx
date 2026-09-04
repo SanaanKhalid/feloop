@@ -1,0 +1,64 @@
+---
+title: Architecture
+description: Understand the framework boundary, records, adapters, and end-to-end control flow.
+---
+
+## Core boundary
+
+FeedbackLoop is an embedded coordination library. It owns the durable vocabulary and lifecycle between production execution and application-controlled improvement.
+
+~~~text
+AI application
+  |
+  +-- record execution tree -----------+
+  +-- attach feedback and outcomes ----+--> FeedbackStore
+                                           |
+scheduled controller <---------------------+
+  |
+  +-- analyze recurring segments
+  +-- invoke proposal recipes
+  +-- evaluate candidates in isolation
+  +-- enforce policy and risk
+  +-- call an application deployer
+  +-- record the new deployed version
+~~~
+
+## Core responsibilities
+
+- Validate execution, parent, episode, signal, and namespace relationships.
+- Preserve the model, dataset, prompt, router, tool schema, knowledge, policy, and application versions that influenced behavior.
+- Find recurring segments using configurable evidence thresholds.
+- Store candidate evidence, proposed changes, risk, evaluation results, and state.
+- Enforce lifecycle transitions and self-improvement policy.
+
+## Adapter responsibilities
+
+| Adapter | Responsibility |
+| --- | --- |
+| FeedbackStore | Durable execution, signal, and candidate records |
+| Capture transport | Non-blocking delivery from the application request path |
+| Recipe | Convert a matching finding into one or more structured proposals |
+| Evaluator | Replay, benchmark, simulate, train, shadow, or experiment |
+| Deployer | Apply a versioned external change |
+| Scheduler | Decide when analysis and improvement runs execute |
+| Observability export | Send metrics and audit data to existing operational systems |
+
+## Why this stays lightweight
+
+The package has no required model provider, queue, vector database, training platform, or hosted control plane. The application can start in-process and introduce durable or distributed adapters only where production requirements justify them.
+
+## Trust boundaries
+
+The optimization target and the control plane must remain separate. A model or agent may propose a prompt, route, dataset, code, capacity, or topology change. It should not automatically rewrite the evaluator, authorization policy, risk ceiling, tool allowlist, secrets boundary, or deployment mechanism used to judge and constrain that proposal.
+
+## State flow
+
+Candidate state transitions are explicit:
+
+~~~text
+proposed -> evaluated -> approved -> deployed -> superseded
+             |              |
+             +-> rejected   +-> rollback restores the previous candidate
+~~~
+
+The external deployment must succeed before the framework marks a candidate deployed.

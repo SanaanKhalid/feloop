@@ -1,0 +1,50 @@
+---
+title: Production operation
+description: Run capture, analysis, evaluation, and deployment as an observable asynchronous control plane.
+---
+
+Keep capture fast and move analysis, proposal generation, evaluation, and deployment outside the user request path.
+
+~~~text
+request path                 data plane                 control plane
+AI application  --------->  FeedbackStore  <--------- scheduled controller
+  record execution            durable records           analyze
+  attach signal               namespace scope           propose
+  return response                                      evaluate
+                                                       deploy
+~~~
+
+## Recommended cadence
+
+- **Per request:** enqueue a sanitized execution record.
+- **On outcome:** attach a signal by execution or episode ID, even days later.
+- **Hourly or daily:** run analysis for high-volume workflows.
+- **Daily or weekly:** create candidates after recurrence and breadth thresholds pass.
+- **Continuously:** run deterministic unit, schema, and safety checks.
+- **On approval:** run shadow, canary, or bounded rollout.
+- **After deployment:** monitor objective and guardrail signals until the evaluation window closes.
+
+## Operational telemetry
+
+Track:
+
+- capture failures and ingestion lag;
+- unattributed signal rate;
+- analysis duration and finding counts;
+- candidates by status, target, and risk;
+- evaluator and constraint failures;
+- deployment failures and reconciliation age;
+- rollback rate and time to approval;
+- post-deployment effect, cost, latency, and safety;
+- storage growth, retention, and deletion backlog.
+
+Alert on broken attribution, authorization failures, sudden shifts in feedback distribution, unexpected candidate volume, or a control-plane component changing its own configuration.
+
+## Maturity ladder
+
+1. **Instrument.** Capture only and validate data quality.
+2. **Recommend.** Humans inspect findings and candidates.
+3. **Experiment.** Automate replay, safety, and shadow evaluation.
+4. **Bounded apply.** Automate reversible, low-risk, mature change types.
+
+Do not choose autonomy based only on confidence in the model. Base it on evidence quality, evaluator coverage, reversibility, blast radius, authorization maturity, and operational rollback readiness.

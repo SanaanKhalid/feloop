@@ -1,0 +1,89 @@
+---
+title: Pattern analysis
+description: Convert isolated production feedback into recurring, evidence-backed findings.
+---
+
+The analyzer segments executions by JSON-path dimensions, joins matching signals, scores them, compares each segment with the namespace baseline, and applies support, recurrence, breadth, and effect thresholds.
+
+## Example
+
+~~~ts
+const findings = await loop.analyze({
+  namespace: "acme/prod",
+  dimensions: [
+    "metadata.task",
+    "metadata.route",
+    "artifacts.prompt",
+  ],
+  maximumDimensionDepth: 2,
+  executionKinds: ["turn"],
+  signalNames: ["operator_correct", "ticket_resolved"],
+  minimumSupport: 20,
+  minimumScoredCount: 10,
+  minimumEffectSize: 0.10,
+  minimumRecurrence: 3,
+  minimumDistinctEntities: 2,
+  entityPath: "metadata.operatorIdHash",
+  timeBucket: "week",
+});
+~~~
+
+## Algorithm
+
+1. Read executions and signals inside the namespace and time window.
+2. Apply execution-kind and signal filters.
+3. Generate every dimension combination up to <code>maximumDimensionDepth</code>.
+4. Attach direct and, unless disabled, episode-level signals.
+5. Convert eligible signals into numeric scores weighted by signal confidence.
+6. Calculate the baseline across all selected evidence.
+7. Remove segments below support, scored count, recurrence, entity breadth, or effect thresholds.
+8. Rank findings by absolute effect multiplied by the square root of scored count.
+
+## Options and defaults
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| dimensions | required | JSON paths used as segment keys |
+| maximumDimensionDepth | min(dimensions, 2) | Largest dimension combination |
+| minimumSupport | 5 | Minimum unique matching executions |
+| minimumScoredCount | 2 | Minimum scoreable signals |
+| minimumEffectSize | 0 | Minimum absolute segment-versus-baseline difference |
+| minimumRecurrence | 1 | Minimum distinct time buckets |
+| minimumDistinctEntities | 0 | Minimum unique affected entities |
+| timeBucket | week | Day, week, or month |
+| includeEpisodeSignals | true | Include delayed episode-level evidence |
+
+## Default scoring
+
+Booleans become 1 or 0. Finite numbers remain numeric. Common positive strings such as <code>correct</code>, <code>resolved</code>, and <code>approved</code> become 1. Common negative strings such as <code>incorrect</code>, <code>reopened</code>, and <code>denied</code> become 0.
+
+Use a custom scorer for latency, cost, multi-objective weighting, and metrics where lower is better.
+
+~~~ts
+score: (signal) => {
+  if (signal.name === "latency_ms" && typeof signal.value === "number") {
+    return Math.max(0, 1 - signal.value / 5000);
+  }
+  if (signal.name === "resolved") {
+    return signal.value === true ? 1 : 0;
+  }
+  return undefined;
+}
+~~~
+
+## Finding metrics
+
+| Metric | Meaning |
+| --- | --- |
+| support | Unique matching executions |
+| scoredCount | Signals converted into numeric scores |
+| meanScore | Confidence-weighted score inside the segment |
+| baselineScore | Confidence-weighted score across selected evidence |
+| effectSize | Segment mean minus baseline |
+| confidence | Approximate normal confidence for segment versus rest |
+| recurrence | Number of day, week, or month buckets containing evidence |
+| distinctEntities | Breadth across users, operators, accounts, devices, or another entity path |
+| correctionCounts | Frequency of each stable structured correction |
+| counterexampleExecutionIds | Better-performing executions useful for contrast and replay |
+
+The confidence result is a prioritization heuristic, not a causal claim. Correlated samples, selection bias, label drift, and repeated evidence from one episode can overstate certainty. Require an evaluation or controlled experiment before promotion.

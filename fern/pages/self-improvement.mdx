@@ -1,0 +1,102 @@
+---
+title: Governed self-improvement
+description: Close the loop with explicit autonomy, recipes, evaluations, constraints, and deployment adapters.
+---
+
+Self-improvement is a controller over the same durable records. It is not an unrestricted recursive agent.
+
+## Autonomy levels
+
+| Mode | Behavior |
+| --- | --- |
+| observe | Return findings only |
+| recommend | Create deduplicated candidates for review |
+| experiment | Create and evaluate candidates but stop before approval |
+| apply | Evaluate, enforce constraints and risk, invoke the deployer, and record deployment |
+
+## Complete controller example
+
+~~~ts
+const controller = new SelfImprovementController(loop);
+
+const result = await controller.run({
+  analysis: {
+    namespace: "acme/prod",
+    dimensions: ["metadata.resource"],
+    executionKinds: ["tool"],
+    signalNames: ["within_latency_budget"],
+    minimumSupport: 25,
+    minimumRecurrence: 3,
+  },
+  policy: {
+    autonomy: "apply",
+    allowedTargets: ["routing"],
+    maxAutomaticRisk: "low",
+    maximumCandidatesPerRun: 3,
+    constraints: [
+      { metric: "answerAccuracy", comparator: "gte", value: 0.95 },
+      { metric: "policyCompliance", comparator: "eq", value: 1 },
+      { metric: "p95LatencyMs", comparator: "lte", value: 1800 },
+    ],
+  },
+  recipes: [deduplicateReadOnlyLookups],
+  evaluatorName: "replay-and-policy-suite@4",
+  evaluator: replayCandidateWithMockedTools,
+  deployer: updateClientScopedVersionPointer,
+});
+~~~
+
+## Controller sequence
+
+1. Analyze and collect recurring findings.
+2. Ask every recipe whether it matches each finding.
+3. Ask matching recipes for zero, one, or several proposals.
+4. Enforce the per-run candidate budget and target allowlist.
+5. Create a stable improvement key from the finding, recipe, target, and proposed change.
+6. Reuse an open candidate or block a duplicate terminal candidate.
+7. Stop after creation in recommend mode.
+8. Evaluate and apply every metric constraint in experiment and apply modes.
+9. In apply mode, enforce the automatic risk ceiling.
+10. Approve, call the external deployer, and record deployed state only after success.
+
+## Recipe contract
+
+~~~ts
+const correctionRecipe: ImprovementRecipe = {
+  name: "clarify-recurring-intent-confusion",
+  matches: (finding) =>
+    (finding.effectSize ?? 0) < -0.10 &&
+    finding.recurrence >= 3 &&
+    finding.distinctEntities >= 2,
+  propose: async (finding) => ({
+    target: { kind: "prompt", key: "support-core" },
+    proposedChange: await generatePromptPatch({
+      dimensions: finding.dimensions,
+      correctionCounts: finding.correctionCounts,
+      counterexamples: finding.counterexampleExecutionIds,
+    }),
+    risk: "medium",
+    metadata: { owner: "ai-platform" },
+  }),
+};
+~~~
+
+A recipe may be deterministic or call an LLM, trainer, optimizer, or coding agent. The output is still a proposal. It does not grant the proposer permission to deploy.
+
+## Policy defaults
+
+- <code>maxAutomaticRisk</code>: low
+- <code>maximumCandidatesPerRun</code>: 10
+- <code>deduplicate</code>: true
+- <code>allowedTargets</code>: required
+
+## Block reasons
+
+- <code>candidate_budget_reached</code>
+- <code>target_not_allowed</code>
+- <code>duplicate_terminal_candidate</code>
+- <code>evaluation_failed</code>
+- <code>risk_exceeds_policy</code>
+- <code>deployment_failed</code>
+
+If physical deployment fails, the candidate remains approved and the run reports a deployment failure. This makes partial failure visible and recoverable.

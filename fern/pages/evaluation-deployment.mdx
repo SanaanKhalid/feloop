@@ -1,0 +1,83 @@
+---
+title: Evaluation and deployment
+description: Prove improvements before promotion and keep every production change reversible.
+---
+
+Evaluation is the proof boundary between an attractive proposal and an acceptable production change.
+
+## Evaluation layers
+
+1. **Schema and static checks.** Validate prompt templates, output schemas, route graphs, tool signatures, token limits, and required policy clauses.
+2. **Historical replay.** Test failures, verified corrections, counterexamples, and untouched holdout cases. Mock mutating tools.
+3. **Safety and policy.** Test injection, authorization, isolation, prohibited actions, escalation, refusal quality, and sensitive data.
+4. **Shadow or canary traffic.** Measure live distributions without immediately changing all user-visible behavior.
+5. **Outcome verification.** Measure the actual task result, cost, latency, and operational burden.
+
+## Evaluator example
+
+~~~ts
+const evaluator: CandidateEvaluator = async (candidate) => {
+  const suite = await loadFrozenReplaySet(candidate.evidence);
+  const results = await runCandidateInSandbox(candidate, suite);
+
+  const metrics = {
+    answerAccuracy: results.accuracy,
+    policyCompliance: results.policyCompliance,
+    regressionRate: results.regressionRate,
+    p95LatencyMs: results.p95LatencyMs,
+    costPerEpisode: results.costPerEpisode,
+  };
+
+  return {
+    passed:
+      metrics.answerAccuracy >= 0.95 &&
+      metrics.policyCompliance === 1 &&
+      metrics.regressionRate <= 0.01,
+    metrics,
+    notes: "Frozen holdout plus adversarial safety suite",
+  };
+};
+~~~
+
+## Prevent overfitting
+
+- Separate discovery, evaluation, and final holdout data.
+- Split by entity and time where leakage is possible.
+- Include counterexamples where existing behavior was correct.
+- Slice metrics by tenant, task, language, model, route, and risk.
+- Freeze replay-set and evaluator versions in candidate metadata.
+- Keep hard safety constraints separate from a blended reward.
+
+## Deployment adapter
+
+~~~ts
+async function deployer(candidate: AdaptationCandidate) {
+  const version = validateVersionedChange(candidate.proposedChange);
+
+  await configurationRegistry.createImmutableVersion({
+    namespace: candidate.namespace,
+    target: candidate.target,
+    candidateId: candidate.id,
+    value: version,
+  });
+
+  await featureFlags.setPointer({
+    namespace: candidate.namespace,
+    key: candidate.target.key,
+    version: version.id,
+    rolloutPercent: 5,
+  });
+}
+~~~
+
+## Recommended rollout
+
+1. Create an immutable artifact version.
+2. Verify namespace, target key, version, and candidate attribution.
+3. Begin with shadowing or a small canary.
+4. Record deployed state after the adapter succeeds.
+5. Emit all new executions with the deployed artifact version.
+6. Monitor objective, safety, cost, and latency guardrails.
+7. Revert the external pointer and call <code>rollbackCandidate</code> when a stop condition fires.
+
+<code>rollbackCandidate</code> restores lifecycle state. The application adapter must still revert the real external pointer.

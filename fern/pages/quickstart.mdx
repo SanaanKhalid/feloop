@@ -1,0 +1,146 @@
+---
+title: Quickstart
+description: Record an AI execution, attach feedback, analyze a recurring segment, and create a candidate.
+---
+
+## Requirements
+
+- Node.js 22 or newer
+- TypeScript with ESM support
+- The current FeedbackLoop repository
+
+The package is currently private and has not been published to npm.
+
+## Install from source
+
+~~~bash
+git clone YOUR_REPOSITORY_URL
+cd ai-feedback-loop
+npm install
+npm run typecheck
+npm test
+~~~
+
+## Create a loop
+
+Use <code>InMemoryStore</code> for unit tests and disposable examples. Use <code>JsonFileStore</code> only for local, single-process development.
+
+~~~ts
+import { FeedbackLoop, JsonFileStore } from "ai-feedback-loop";
+
+const loop = new FeedbackLoop(
+  new JsonFileStore(".feedback-loop/local.json"),
+);
+~~~
+
+## Record an execution
+
+An execution should contain enough structured context to attribute later outcomes to the exact system behavior and versions that produced it.
+
+~~~ts
+const turn = await loop.recordExecution({
+  namespace: "acme/prod",
+  kind: "turn",
+  episodeId: "ticket-1842",
+  entityId: "operator-hash",
+  input: {
+    message: "Remove MFA for this user",
+  },
+  output: {
+    intent: "disable_per_user_mfa",
+  },
+  artifacts: {
+    model: "model@4",
+    prompt: "support-core@18",
+    router: "intent-router@7",
+    policy: "approval-policy@8",
+    application: "support-app@0.1.0",
+  },
+  metadata: {
+    task: "identity.mfa",
+    route: "identity",
+  },
+});
+~~~
+
+## Attach a correction
+
+Preserve both the original output and the verified replacement target.
+
+~~~ts
+await loop.recordSignal({
+  namespace: turn.namespace,
+  executionId: turn.id,
+  kind: "correction",
+  name: "operator_correct",
+  value: false,
+  correction: {
+    intent: "delete_authentication_methods",
+    firstTool: "list_user_authentication_methods",
+  },
+  source: "operator",
+  confidence: 1,
+});
+~~~
+
+## Find recurring patterns
+
+~~~ts
+const findings = await loop.analyze({
+  namespace: "acme/prod",
+  dimensions: [
+    "metadata.task",
+    "metadata.route",
+    "artifacts.prompt",
+  ],
+  maximumDimensionDepth: 2,
+  executionKinds: ["turn"],
+  signalNames: ["operator_correct", "ticket_resolved"],
+  minimumSupport: 20,
+  minimumScoredCount: 10,
+  minimumEffectSize: 0.1,
+  minimumRecurrence: 3,
+  minimumDistinctEntities: 2,
+  entityPath: "entityId",
+  timeBucket: "week",
+});
+~~~
+
+## Create and evaluate a candidate
+
+~~~ts
+const candidate = await loop.createCandidateFromFinding({
+  finding: findings[0]!,
+  target: {
+    kind: "prompt",
+    key: "support-core",
+  },
+  proposedChange: {
+    from: "support-core@18",
+    to: "support-core@19",
+    instruction:
+      "Separate disabling per-user MFA from deleting registered authentication methods.",
+  },
+  risk: "medium",
+});
+
+const evaluated = await loop.evaluateCandidate(
+  candidate.id,
+  "historical-replay@3",
+  async (candidate) => replayCandidate(candidate),
+);
+
+if (evaluated.evaluations.at(-1)?.passed) {
+  await loop.approveCandidate(candidate.id);
+  await applyVersionPointer(candidate);
+  await loop.deployCandidate(candidate.id);
+}
+~~~
+
+The external change happens in <code>applyVersionPointer</code>. <code>deployCandidate</code> records lifecycle state only.
+
+## Close resources
+
+~~~ts
+await loop.close();
+~~~

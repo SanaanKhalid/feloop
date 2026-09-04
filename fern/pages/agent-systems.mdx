@@ -1,0 +1,53 @@
+---
+title: Agent systems
+description: Use execution trees to improve delegation, tools, workflows, topology, and capacity.
+---
+
+Agent improvement extends the same loop from individual answers to orchestration.
+
+## What execution trees reveal
+
+| Dimension | Question |
+| --- | --- |
+| Delegation quality | Did the orchestrator choose the right specialist? |
+| Tool reliability | Which calls fail, retry, time out, or need operator repair? |
+| Bottlenecks | Which child contributes the largest queue or execution delay? |
+| Duplicate work | Which retrievals or tools repeat within one episode? |
+| Topology | Would merging, splitting, or parallelizing roles improve outcomes? |
+| Capacity | Would bounded concurrency or caching remove a stable constraint? |
+
+## Bottleneck recipe
+
+~~~ts
+const bottleneckRecipe: ImprovementRecipe = {
+  name: "cache-repeated-read-only-lookups",
+  matches: (finding) =>
+    finding.dimensions["metadata.resource"] === "ticket-api" &&
+    (finding.meanScore ?? 1) < 0.70 &&
+    finding.recurrence >= 3,
+  propose: () => ({
+    target: { kind: "routing", key: "ticket-read-path" },
+    proposedChange: {
+      version: "ticket-read-path@2",
+      cacheWithinEpisode: true,
+      coalesceConcurrentReads: true,
+    },
+    risk: "low",
+  }),
+};
+~~~
+
+## Bounded self-improvement
+
+An observer detects a repeated tool or subagent bottleneck. A proposer generates a routing, capacity, workflow, code, or topology candidate. A sandbox evaluator replays representative trees. Policy permits automatic deployment only when the proposal is reversible, low risk, and within all metric constraints. New executions record the new artifact version and close the next measurement cycle.
+
+Observation may be broad, but authority should be narrow:
+
+- Proposals are structured data.
+- Evaluation happens in isolation.
+- Production permissions are scoped.
+- Risk and candidate budgets are explicit.
+- Deployment is an adapter action.
+- Rollback is versioned.
+
+If an agent proposes a change to the evaluator, policy, or deployment mechanism itself, classify it as a separate high- or critical-risk candidate and require an independent control plane.

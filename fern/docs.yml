@@ -1,0 +1,98 @@
+# yaml-language-server: $schema=https://schema.buildwithfern.dev/docs-yml.json
+
+instances:
+  - url: feedbackloop-framework.docs.buildwithfern.com
+
+title: FeedbackLoop Documentation
+default-language: typescript
+favicon: assets/favicon.svg
+
+logo:
+  href: https://feedbackloop-framework.sanaanyl.chatgpt.site
+  dark: assets/logo-dark.svg
+  light: assets/logo-light.svg
+  right-text: Docs
+  height: 26
+
+colors:
+  accent-primary:
+    light: "#5d8f00"
+    dark: "#c6ff59"
+  background:
+    light: "#f7f8f5"
+    dark: "#070807"
+  border:
+    light: "#d9ddd4"
+    dark: "#292c28"
+  sidebar-background:
+    light: "#f0f2ed"
+    dark: "#0b0d0b"
+  header-background:
+    light: "#ffffff"
+    dark: "#070807"
+  card-background:
+    light: "#eef1e9"
+    dark: "#101310"
+
+theme:
+  sidebar: minimal
+  body: canvas
+  page-actions: toolbar
+  footer-nav: minimal
+
+layout:
+  searchbar-placement: header
+  mobile-toc: true
+
+navbar-links:
+  - type: minimal
+    text: Home
+    href: https://feedbackloop-framework.sanaanyl.chatgpt.site
+  - type: github
+    value: https://github.com/SanaanKhalid/ai-feedback-loop
+
+navigation:
+  - section: Get started
+    contents:
+      - page: Overview
+        path: pages/overview.mdx
+      - page: Quickstart
+        path: pages/quickstart.mdx
+      - page: Architecture
+        path: pages/architecture.mdx
+  - section: Core concepts
+    contents:
+      - page: Executions and episodes
+        path: pages/executions.mdx
+      - page: Signals and outcomes
+        path: pages/signals.mdx
+      - page: Pattern analysis
+        path: pages/analysis.mdx
+      - page: Improvement candidates
+        path: pages/candidates.mdx
+  - section: Closing the loop
+    contents:
+      - page: Governed self-improvement
+        path: pages/self-improvement.mdx
+      - page: Evaluation and deployment
+        path: pages/evaluation-deployment.mdx
+      - page: Fine-tuning
+        path: pages/fine-tuning.mdx
+      - page: Agent systems
+        path: pages/agent-systems.mdx
+  - section: Operate
+    contents:
+      - page: Storage adapters
+        path: pages/storage.mdx
+      - page: Security and privacy
+        path: pages/security.mdx
+      - page: Production operation
+        path: pages/production.mdx
+  - section: Reference
+    contents:
+      - page: TypeScript API
+        path: pages/api-reference.mdx
+      - page: Common pitfalls and FAQ
+        path: pages/faq.mdx
+
+css: styles.css

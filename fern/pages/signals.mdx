@@ -1,0 +1,48 @@
+---
+title: Signals and outcomes
+description: Attach human feedback, corrections, rewards, tool results, sensors, and delayed business outcomes.
+---
+
+A signal is evidence observed during or after an execution. It targets one execution or an entire episode.
+
+## Signal kinds
+
+- <code>rating</code>
+- <code>correction</code>
+- <code>outcome</code>
+- <code>reward</code>
+- <code>approval</code>
+- <code>tool_result</code>
+- <code>custom</code>
+
+## Fields
+
+| Field | Required | Purpose |
+| --- | --- | --- |
+| namespace | yes | Must match the targeted execution and isolation boundary |
+| executionId or episodeId | one | At least one attribution target is required |
+| kind | yes | Evidence category |
+| name | yes | Application metric, such as resolved, operator_correct, latency_ms, or glucose_delta |
+| value | yes | JSON-safe observed value |
+| correction | no | Verified replacement answer, label, route, intent, tool, or structured target |
+| source | yes | Operator, customer, evaluator, sensor, tool, or business system |
+| confidence | no | Evidence weight from 0 to 1; defaults to 1 |
+| metadata | no | Collection method, reason code, validation state, or source version |
+| observedAt | no | When the evidence became available |
+
+## Evidence hierarchy
+
+1. **Verified correction or real-world outcome.** A confirmed label, durable resolution, successful action, sensor result, or business outcome gives an actionable target.
+2. **Approval plus successful execution.** Approval is useful when downstream behavior confirms the plan worked.
+3. **Explicit rating.** A rating prioritizes a segment but often does not identify the correct behavior.
+4. **Implicit behavior.** Restatement, abandonment, or silence can help discovery but should not become training truth without verification.
+
+## Direct and delayed attribution
+
+Use <code>executionId</code> when evidence belongs to one model call, retrieval, or tool. Use <code>episodeId</code> when the result belongs to the whole task. Episode outcomes can arrive hours or days later.
+
+When analysis selects only root turns, an episode outcome is attributed to those selected executions rather than duplicated across every child operation.
+
+## A critical training rule
+
+Never train directly on a disliked output. Pair negative evidence with an authoritative correction or omit it from supervised training. A negative signal says something went wrong; it does not say what the model should learn.

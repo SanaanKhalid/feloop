@@ -1,0 +1,61 @@
+---
+title: Overview
+description: Build a governed learning loop around an LLM, machine-learning model, workflow, or agent system.
+layout: overview
+---
+
+FeedbackLoop is a dependency-light TypeScript coordination layer for connecting production AI behavior to later feedback and outcomes. It detects recurring patterns and governs how improvements are proposed, evaluated, deployed, measured, and rolled back.
+
+The framework is model-agnostic. It works with LLM applications, classifiers, predictors, retrieval systems, tool-using agents, multi-agent workflows, and conventional machine-learning systems.
+
+## The core loop
+
+~~~text
+capture -> correlate -> analyze -> propose -> evaluate -> approve
+        -> deploy -> measure -> repeat
+~~~
+
+1. **Capture** the operation performed by the AI system.
+2. **Correlate** direct feedback or a delayed real-world outcome.
+3. **Analyze** repeated behavior across structured dimensions.
+4. **Propose** a versioned prompt, route, rule, dataset, model, workflow, or other change.
+5. **Evaluate** the proposal against replay, holdout, safety, cost, and latency criteria.
+6. **Approve and deploy** within an explicit risk and authorization policy.
+7. **Measure again** using the new artifact versions.
+
+## The five durable records
+
+| Record | Meaning |
+| --- | --- |
+| Execution | One prediction, generation, retrieval, tool call, workflow, agent, or custom operation |
+| Episode | A stable ID joining operations and delayed outcomes in one task, ticket, conversation, meal, or incident |
+| Signal | A rating, correction, reward, approval, tool result, or real-world outcome |
+| Finding | Recurring evidence within a structured segment |
+| Candidate | A versioned proposed change with evidence, risk, evaluation, and lifecycle state |
+
+## What the framework owns
+
+- Stable contracts for executions, signals, findings, and candidates
+- Execution trees and episode attribution
+- Namespace isolation checks
+- Lightweight recurring-pattern analysis
+- Candidate evaluation and lifecycle rules
+- Graduated self-improvement modes
+- Storage and deployment adapter boundaries
+
+## What stays in your application
+
+FeedbackLoop does not host models, call a particular LLM, train models, run a vector database, replace observability, or mutate production infrastructure by itself. Your application supplies the database, capture transport, evaluator, prompt generator, trainer, experiment platform, version registry, and deployment adapter.
+
+That boundary is intentional: the core remains small while the high-impact side effects remain explicit and application-controlled.
+
+## Start safely
+
+Begin with one workflow in <code>observe</code> mode. Capture exact artifact versions and verified outcomes. Confirm that feedback is correctly attributed before creating candidates. Move through <code>recommend</code> and <code>experiment</code> before allowing any low-risk automatic deployment.
+
+## Where to go next
+
+- Follow the [Quickstart](/get-started/quickstart) to record an execution and correction.
+- Learn the [Architecture](/get-started/architecture).
+- Understand [Governed self-improvement](/closing-the-loop/governed-self-improvement).
+- Review [Security and privacy](/operate/security-and-privacy) before production use.
