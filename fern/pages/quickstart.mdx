@@ -7,7 +7,7 @@ description: Record an AI execution, attach feedback, analyze a recurring segmen
 
 - Node.js 22 or newer
 - TypeScript with ESM support
-- The current FeedbackLoop repository
+- The current Feloop repository (local folder: `ai-feedback-loop`)
 
 The package is currently private and has not been published to npm.
 
@@ -26,7 +26,7 @@ npm test
 Use <code>InMemoryStore</code> for unit tests and disposable examples. Use <code>JsonFileStore</code> only for local, single-process development.
 
 ~~~ts
-import { FeedbackLoop, JsonFileStore } from "ai-feedback-loop";
+import { FeedbackLoop, JsonFileStore } from "feloop";
 
 const loop = new FeedbackLoop(
   new JsonFileStore(".feedback-loop/local.json"),

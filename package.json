@@ -1,5 +1,5 @@
 {
-  "name": "ai-feedback-loop",
+  "name": "feloop",
   "version": "0.1.0",
   "private": true,
   "description": "A lightweight, model-agnostic feedback loop for production AI systems.",
@@ -13,6 +13,7 @@
     }
   },
   "bin": {
+    "feloop": "./dist/src/cli.js",
     "ai-feedback-loop": "./dist/src/cli.js"
   },
   "files": [

@@ -4,7 +4,7 @@ description: Build a governed learning loop around an LLM, machine-learning mode
 layout: overview
 ---
 
-FeedbackLoop is a dependency-light TypeScript coordination layer for connecting production AI behavior to later feedback and outcomes. It detects recurring patterns and governs how improvements are proposed, evaluated, deployed, measured, and rolled back.
+Feloop is a dependency-light TypeScript coordination layer for connecting production AI behavior to later feedback and outcomes. It detects recurring patterns and governs how improvements are proposed, evaluated, deployed, measured, and rolled back.
 
 The framework is model-agnostic. It works with LLM applications, classifiers, predictors, retrieval systems, tool-using agents, multi-agent workflows, and conventional machine-learning systems.
 
@@ -45,7 +45,7 @@ capture -> correlate -> analyze -> propose -> evaluate -> approve
 
 ## What stays in your application
 
-FeedbackLoop does not host models, call a particular LLM, train models, run a vector database, replace observability, or mutate production infrastructure by itself. Your application supplies the database, capture transport, evaluator, prompt generator, trainer, experiment platform, version registry, and deployment adapter.
+Feloop does not host models, call a particular LLM, train models, run a vector database, replace observability, or mutate production infrastructure by itself. Your application supplies the database, capture transport, evaluator, prompt generator, trainer, experiment platform, version registry, and deployment adapter.
 
 That boundary is intentional: the core remains small while the high-impact side effects remain explicit and application-controlled.
 

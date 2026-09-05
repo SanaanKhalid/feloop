@@ -2,7 +2,7 @@
 
 ## Core boundary
 
-AI Feedback Loop is an embeddable coordination library. It owns the durable vocabulary and lifecycle between production execution and application-controlled improvement:
+Feloop is an embeddable coordination library. It owns the durable vocabulary and lifecycle between production execution and application-controlled improvement:
 
 ```text
 capture -> correlate -> analyze -> propose -> evaluate -> approve -> deploy state

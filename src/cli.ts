@@ -56,11 +56,11 @@ function listFlag(flags: Flags, name: string): string[] | undefined {
 }
 
 function help(): string {
-  return `ai-feedback-loop
+  return `feloop
 
 Usage:
-  ai-feedback-loop analyze --store <file> --namespace <scope> --dimensions <paths>
-  ai-feedback-loop candidates --store <file> [--namespace <scope>] [--status <statuses>]
+  feloop analyze --store <file> --namespace <scope> --dimensions <paths>
+  feloop candidates --store <file> [--namespace <scope>] [--status <statuses>]
 
 Analyze options:
   --dimensions metadata.intent,artifacts.prompt

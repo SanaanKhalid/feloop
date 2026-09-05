@@ -1,4 +1,4 @@
-# AI Feedback Loop
+# Feloop
 
 A dependency-light, model-agnostic TypeScript framework for connecting production AI executions to later feedback and outcomes, detecting recurring patterns, and managing evaluated improvement candidates.
 
@@ -60,8 +60,10 @@ npm run example:self-improving
 
 ## Quick start
 
+Feloop is currently a private, unpublished package. The package name is `feloop`; the core TypeScript class remains `FeedbackLoop`. The `feloop` CLI also accepts the legacy `ai-feedback-loop` executable name. The local checkout is still named `ai-feedback-loop`.
+
 ```ts
-import { FeedbackLoop, JsonFileStore } from "ai-feedback-loop";
+import { FeedbackLoop, JsonFileStore } from "feloop";
 
 const feedback = new FeedbackLoop(
   new JsonFileStore(".feedback-loop/local.json"),
@@ -166,7 +168,7 @@ Deployment only changes candidate state. An application adapter remains responsi
 `SelfImprovementController` closes the loop without giving the framework unrestricted access to production. It analyzes evidence, invokes application-supplied improvement recipes, evaluates proposals, and optionally calls a deployment adapter.
 
 ```ts
-import { SelfImprovementController } from "ai-feedback-loop";
+import { SelfImprovementController } from "feloop";
 
 const controller = new SelfImprovementController(feedback);
 

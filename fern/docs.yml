@@ -1,9 +1,9 @@
 # yaml-language-server: $schema=https://schema.buildwithfern.dev/docs-yml.json
 
 instances:
-  - url: feedbackloop-framework.docs.buildwithfern.com
+  - url: feloop.docs.buildwithfern.com
 
-title: FeedbackLoop Documentation
+title: Feloop Documentation
 default-language: typescript
 favicon: assets/favicon.svg
 
@@ -49,7 +49,7 @@ navbar-links:
     text: Home
     href: https://feedbackloop-framework.sanaanyl.chatgpt.site
   - type: github
-    value: https://github.com/SanaanKhalid/ai-feedback-loop
+    value: https://github.com/SanaanKhalid/feloop
 
 navigation:
   - section: Get started

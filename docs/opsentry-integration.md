@@ -1,6 +1,6 @@
 # Opsentry Integration
 
-Opsentry is the first reference integration for AI Feedback Loop. The framework remains independent of Lex, Azure OpenAI, ServiceNow, Microsoft Graph, and Opsentry's policy engine.
+Opsentry is the first reference integration for Feloop. The framework remains independent of Lex, Azure OpenAI, ServiceNow, Microsoft Graph, and Opsentry's policy engine.
 
 ## Integration topology
 
