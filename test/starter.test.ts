@@ -11,6 +11,7 @@ import {
 } from "../examples/prompt-improvement/registry.js";
 import {
   OpenAIProvider,
+  AzureOpenAIProvider,
   type GenerateInput,
 } from "../examples/prompt-improvement/provider.js";
 const request: GenerateInput = {
@@ -160,4 +161,49 @@ test("OpenAI adapter rejects non-success and cancellation without retry", async 
   assert.equal(calls, 1);
   await assert.rejects(p.generate({ ...request, signal: AbortSignal.abort() }));
   assert.equal(calls, 1);
+});
+
+test("Azure sends deployment and the selected credential only to its Responses endpoint", async () => {
+  for (const auth of ["key", "token"] as const) {
+    let tokenCalls = 0;
+    const provider = new AzureOpenAIProvider({
+      endpoint: "https://test-resource.openai.azure.com/",
+      model: "my-deployment",
+      ...(auth === "key" ? { apiKey: "fixture-key" } : {
+        tokenProvider: async () => { tokenCalls++; return `fixture-token-${tokenCalls}`; },
+      }),
+      fetch: (async (url, init) => {
+        assert.equal(url, "https://test-resource.openai.azure.com/openai/v1/responses");
+        assert.equal(init?.redirect, "error");
+        const headers = new Headers(init?.headers);
+        assert.equal(headers.get("api-key"), auth === "key" ? "fixture-key" : null);
+        assert.equal(headers.get("Authorization"), auth === "token" ? `Bearer fixture-token-${tokenCalls}` : null);
+        const body = JSON.parse(String(init?.body));
+        assert.equal(body.model, "my-deployment");
+        assert.equal(body.store, false);
+        assert.equal(body.text.format.strict, true);
+        return Response.json({ status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: '{"label":"billing"}' }] }] });
+      }) as typeof fetch,
+    });
+    assert.equal((await provider.generate(request)).value.label, "billing");
+    await provider.generate(request);
+    assert.equal(tokenCalls, auth === "token" ? 2 : 0);
+  }
+});
+
+test("Azure fails closed on unsafe endpoints, ambiguous/missing auth, empty tokens and cancelled auth", async () => {
+  const options = { endpoint: "https://test-resource.openai.azure.com/", model: "deployment" };
+  for (const endpoint of ["http://example.com", "https://user:secret@example.com", "https://example.com/path", "https://example.com/?key=secret"]) {
+    assert.throws(() => new AzureOpenAIProvider({ ...options, endpoint, apiKey: "fixture" }));
+  }
+  assert.throws(() => new AzureOpenAIProvider(options));
+  assert.throws(() => new AzureOpenAIProvider({ ...options, apiKey: "fixture", tokenProvider: async () => "fixture" }));
+  let calls = 0;
+  const fetcher = (async () => { calls++; throw new Error("Unexpected fetch"); }) as typeof fetch;
+  const empty = new AzureOpenAIProvider({ ...options, tokenProvider: async () => "", fetch: fetcher });
+  await assert.rejects(empty.generate(request), /token/);
+  const controller = new AbortController();
+  const cancelled = new AzureOpenAIProvider({ ...options, tokenProvider: async () => { controller.abort(); return "fixture"; }, fetch: fetcher });
+  await assert.rejects(cancelled.generate({ ...request, signal: controller.signal }));
+  assert.equal(calls, 0);
 });

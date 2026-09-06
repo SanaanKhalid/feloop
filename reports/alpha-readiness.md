@@ -1,5 +1,35 @@
 # Feloop 0.2.0-alpha.1 — local validation record
 
+## September 6 follow-up
+
+- Azure OpenAI live smoke completed using the existing Azure CLI identity and an
+  in-memory Microsoft Entra token. No provider key was needed, printed or saved.
+- Deployment/model: `gpt-5.4-mini`; Azure deployment metadata reports version
+  `2026-03-17`. The Responses API reported model `gpt-5.4-mini` for all six requests.
+- Six synthetic correction examples were classified correctly (764 input tokens,
+  73 output tokens reported). Feloop returned `No recurring verified errors.`
+  There was no candidate, so live proposal generation, held-out evaluation,
+  approval, deployment and rollback were **not exercised** in this run. This is
+  the permitted no-candidate outcome, not evidence of self-improvement or ROI.
+- Actual report: [alpha-live-azure-smoke.json](./alpha-live-azure-smoke.json).
+  It retains baseline predictions, prompt/model identifiers, holdout hash,
+  evaluator version, measured latency and token counts. Text/timestamps in the
+  fixture manifest are synthetic; createdAt records the actual capture time.
+- Azure transport regression tests cover resource URL/deployment routing, key vs
+  token authentication, refreshed tokens per request, cancellation and invalid
+  credentials/endpoints. Local Node 24/PostgreSQL 17 suite: 49 passed, none skipped;
+  documentation compilation, package installation and Fern validation passed.
+- npm identity is now verified as `sanaanyl`, with verified email and 2FA enabled.
+  Publication remains a separate release action. Repository public access and a
+  working public security-reporting channel remain outstanding.
+- The previous CI failure was Fern's unauthenticated deployed-redirect notice.
+  Local validation permits only that exact notice in CI; other warnings fail.
+  Authenticated validation passed locally. All six remote jobs passed on
+  `55761f2` before this Azure addition; the Azure commit requires its own CI run.
+
+The original September 5 record below is historical; the follow-up above supersedes
+its statements about missing live credentials and unverified npm identity.
+
 Validated September 5, 2026 (America/Chicago), in the working tree based on
 `bc8cc91dd5c9cb627f80718a85cafb46eb873fb0`. This is implementation/release preparation,
 not a published release, penetration test or claim of production model improvement.

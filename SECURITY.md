@@ -30,5 +30,5 @@ the affected trust boundary. No third-party/customer testing is authorized by th
   erases evidence/history, not external deployments, provider copies or backups.
 
 Feloop sends no telemetry. The optional starter explicitly sends selected text to
-OpenAI in live mode. `store:false` is not a zero-retention or compliance guarantee.
+OpenAI or Azure OpenAI in live mode. `store:false` is not a zero-retention or compliance guarantee.
 Review your provider agreement and retention configuration before sending real data.

@@ -6,7 +6,7 @@ title: Classification starter
 
 A standalone, copyable example. It is **not Opsentry**, a hosted service or a trained
 model. The core SDK has no provider dependency; `provider.ts` supplies a small
-provider-neutral interface and an OpenAI Responses implementation using native fetch.
+provider-neutral interface and OpenAI/Azure OpenAI Responses implementations using native fetch.
 
 ## Offline, no credentials
 
@@ -39,6 +39,30 @@ request text, verified correction examples or held-out fixtures are sent to Open
 `store:false` is requested; that is not a zero-retention guarantee. See
 [OpenAI structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs).
 This starter uses only synthetic examples by default, including in live mode.
+
+### Azure OpenAI
+
+Azure uses the same workflow with your resource endpoint and **deployment name**.
+Set `FELOOP_PROVIDER=azure`, `AZURE_OPENAI_ENDPOINT=https://YOUR-RESOURCE.openai.azure.com/`
+and `AZURE_OPENAI_DEPLOYMENT=YOUR-DEPLOYMENT`. The endpoint must be an HTTPS resource
+origin without a path, query or embedded credentials; the starter appends
+`/openai/v1/responses`. Select a deployment supporting Responses strict structured outputs.
+
+Supply exactly one of `AZURE_OPENAI_API_KEY` or `AZURE_OPENAI_AUTH_TOKEN` through
+your secret manager/environment. For the token option, sign in with `az login` and
+obtain a Microsoft Entra token using
+`az account get-access-token --resource https://ai.azure.com --query accessToken -o tsv`.
+Capture the result into `AZURE_OPENAI_AUTH_TOKEN` locally; do not paste it into chat,
+logs or source. Your identity needs inference permission on the selected resource;
+a successful Azure login alone does not establish that permission.
+
+`OPENAI_API_KEY` and `OPENAI_MODEL` are unused in Azure mode. The same `init`, `smoke`,
+prediction and review commands apply. Requests go to Azure and use Azure billing.
+The CLI token is short-lived and must be refreshed before it expires. Programmatic
+users can supply `AzureOpenAIProvider.tokenProvider(signal)`, called for each request,
+to integrate their own credential refresh. The SDK core acquires no Azure dependency.
+Authentication errors fail without automatic retries or fallback to another provider.
+See [Microsoft's Responses API guide](https://learn.microsoft.com/en-us/azure/foundry/openai/how-to/responses).
 
 Optional environment limits (per command, not a durable account-wide quota):
 

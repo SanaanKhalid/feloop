@@ -2,8 +2,8 @@ import { Pool } from "pg";
 import { writeFile } from "node:fs/promises";
 import { FeedbackLoop, InMemoryStore } from "../../src/index.js";
 import { PostgresStore, migratePostgres } from "../../src/postgres.js";
-import { FixtureProvider, PromptStarter } from "./workflow.js";
-import { OpenAIProvider } from "./provider.js";
+import { datasetHash, evaluatorVersion, FixtureProvider, PromptStarter } from "./workflow.js";
+import { AzureOpenAIProvider, OpenAIProvider } from "./provider.js";
 import { MemoryPromptRegistry, PostgresPromptRegistry } from "./registry.js";
 import type { Label } from "./fixtures.js";
 const [command = "help", ...args] = process.argv.slice(2);
@@ -43,24 +43,39 @@ async function main() {
     ? new PostgresPromptRegistry(pool, namespace)
     : new MemoryPromptRegistry();
   const modelCommands = ["seed", "predict", "recommend", "evaluate", "smoke"];
+  const providerName = process.env.FELOOP_PROVIDER ?? "openai";
+  if (live && providerName !== "openai" && providerName !== "azure")
+    throw new Error("FELOOP_PROVIDER must be openai or azure.");
   if (live && modelCommands.includes(command))
     console.error(
-      "LIVE MODE: request text, corrections or holdout fixtures will be sent to OpenAI and may incur charges. store:false is not a zero-retention guarantee.",
+      `LIVE MODE: request text, corrections or holdout fixtures will be sent to ${providerName === "azure" ? "Azure OpenAI" : "OpenAI"} and may incur charges. store:false is not a zero-retention guarantee.`,
     );
   const provider =
     live && modelCommands.includes(command)
-      ? new OpenAIProvider({
-          apiKey: process.env.OPENAI_API_KEY ?? "",
-          model: process.env.OPENAI_MODEL ?? "",
-          maximumRequests: Number(process.env.FELOOP_MAX_REQUESTS ?? 80),
-          maximumOutputTokens: Number(
-            process.env.FELOOP_MAX_OUTPUT_TOKENS ?? 2048,
-          ),
-          maximumInputBytes: Number(
-            process.env.FELOOP_MAX_INPUT_BYTES ?? 16384,
-          ),
-        })
+      ? createLiveProvider()
       : new FixtureProvider(args.includes("--reject"));
+  function createLiveProvider() {
+    const limits = {
+      maximumRequests: Number(process.env.FELOOP_MAX_REQUESTS ?? 80),
+      maximumOutputTokens: Number(process.env.FELOOP_MAX_OUTPUT_TOKENS ?? 2048),
+      maximumInputBytes: Number(process.env.FELOOP_MAX_INPUT_BYTES ?? 16384),
+    };
+    if (providerName === "azure") {
+      const token = process.env.AZURE_OPENAI_AUTH_TOKEN;
+      return new AzureOpenAIProvider({
+        ...limits,
+        endpoint: process.env.AZURE_OPENAI_ENDPOINT ?? "",
+        model: process.env.AZURE_OPENAI_DEPLOYMENT ?? "",
+        ...(process.env.AZURE_OPENAI_API_KEY ? { apiKey: process.env.AZURE_OPENAI_API_KEY } : {}),
+        ...(token ? { tokenProvider: async () => token } : {}),
+      });
+    }
+    return new OpenAIProvider({
+      ...limits,
+      apiKey: process.env.OPENAI_API_KEY ?? "",
+      model: process.env.OPENAI_MODEL ?? "",
+    });
+  }
   const starter = new PromptStarter(loop, provider, registry);
   const signal = AbortSignal.timeout(600000);
   try {
@@ -141,14 +156,17 @@ async function main() {
     } else if (command === "smoke") {
       await starter.seed(signal);
       const proposed = await starter.recommend(signal);
-      result = proposed.candidate
-        ? {
-            ...proposed,
+      result = {
+        ...proposed,
+        datasetHash,
+        evaluatorVersion,
+        baselinePredictions: (await loop.list("executions")).items,
+        ...(proposed.candidate ? {
             evaluated: await starter.evaluate(proposed.candidate.id, signal),
             nextAction:
               "Review the actual results; explicit approval and deployment remain separate commands.",
-          }
-        : proposed;
+          } : {}),
+      };
     } else if (command === "seed") {
       await starter.seed(signal);
       result = { capturedSyntheticCorrections: true, provider: provider.mode };
@@ -191,6 +209,10 @@ async function main() {
       {
         command,
         mode: live ? "live" : "simulated",
+        ...(live && modelCommands.includes(command) ? {
+          provider: providerName,
+          configuredModel: provider.model,
+        } : {}),
         generatedAt: new Date().toISOString(),
         result,
       },

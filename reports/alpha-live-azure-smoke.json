@@ -1,0 +1,195 @@
+{
+  "command": "smoke",
+  "mode": "live",
+  "provider": "azure",
+  "configuredModel": "gpt-5.4-mini",
+  "generatedAt": "2026-09-06T18:30:13.225Z",
+  "result": {
+    "candidate": null,
+    "reason": "No recurring verified errors.",
+    "datasetHash": "9ee72dcb3e7e7e11ee6851b1fb778875c5f98d245c8e86f8c01d32f344d68fe2",
+    "evaluatorVersion": "classification-holdout-v1",
+    "baselinePredictions": [
+      {
+        "id": "prediction_c1_247089801e1ad74a2dd716cf8c34490cda979f02081014f82b67228f9b260be7",
+        "kind": "prediction",
+        "input": {
+          "text": "I was charged twice for the same invoice."
+        },
+        "output": {
+          "label": "billing"
+        },
+        "entityId": "train1",
+        "metadata": {
+          "mode": "live",
+          "task": "support-intent",
+          "segment": "billing",
+          "latencyMs": 1296.2339579999998,
+          "inputTokens": 129,
+          "outputTokens": 12
+        },
+        "revision": 1,
+        "artifacts": {
+          "model": "gpt-5.4-mini",
+          "prompt": "247089801e1ad74a2dd716cf8c34490cda979f02081014f82b67228f9b260be7"
+        },
+        "createdAt": "2026-09-06T18:30:08.427Z",
+        "episodeId": "c1",
+        "inputHash": "9d1ebf9b4b0f26ddddd137bc16cc9dbc6146ec7995ae9ec6f007af24bbd3d8f7",
+        "namespace": "release/alpha-1-live-2026-09-06",
+        "startedAt": "2026-01-01T00:00:00Z",
+        "updatedAt": "2026-09-06T18:30:08.427Z"
+      },
+      {
+        "id": "prediction_c2_247089801e1ad74a2dd716cf8c34490cda979f02081014f82b67228f9b260be7",
+        "kind": "prediction",
+        "input": {
+          "text": "Please refund the duplicate payment."
+        },
+        "output": {
+          "label": "billing"
+        },
+        "entityId": "train2",
+        "metadata": {
+          "mode": "live",
+          "task": "support-intent",
+          "segment": "billing",
+          "latencyMs": 865.4651670000001,
+          "inputTokens": 126,
+          "outputTokens": 12
+        },
+        "revision": 1,
+        "artifacts": {
+          "model": "gpt-5.4-mini",
+          "prompt": "247089801e1ad74a2dd716cf8c34490cda979f02081014f82b67228f9b260be7"
+        },
+        "createdAt": "2026-09-06T18:30:09.317Z",
+        "episodeId": "c2",
+        "inputHash": "fc91bc9d3418eaa4660640cd7d9b92400f420adb0aa0d7a04b71440d8ea8cc46",
+        "namespace": "release/alpha-1-live-2026-09-06",
+        "startedAt": "2026-01-08T00:00:00Z",
+        "updatedAt": "2026-09-06T18:30:09.317Z"
+      },
+      {
+        "id": "prediction_c3_247089801e1ad74a2dd716cf8c34490cda979f02081014f82b67228f9b260be7",
+        "kind": "prediction",
+        "input": {
+          "text": "An unexpected charge appeared after cancellation."
+        },
+        "output": {
+          "label": "billing"
+        },
+        "entityId": "train3",
+        "metadata": {
+          "mode": "live",
+          "task": "support-intent",
+          "segment": "billing",
+          "latencyMs": 1078.1120420000002,
+          "inputTokens": 127,
+          "outputTokens": 12
+        },
+        "revision": 1,
+        "artifacts": {
+          "model": "gpt-5.4-mini",
+          "prompt": "247089801e1ad74a2dd716cf8c34490cda979f02081014f82b67228f9b260be7"
+        },
+        "createdAt": "2026-09-06T18:30:10.415Z",
+        "episodeId": "c3",
+        "inputHash": "ff6cefbaabb8771dd88e0c86a50507eda0046901b33f631a6a30bd4ced226424",
+        "namespace": "release/alpha-1-live-2026-09-06",
+        "startedAt": "2026-01-15T00:00:00Z",
+        "updatedAt": "2026-09-06T18:30:10.415Z"
+      },
+      {
+        "id": "prediction_c4_247089801e1ad74a2dd716cf8c34490cda979f02081014f82b67228f9b260be7",
+        "kind": "prediction",
+        "input": {
+          "text": "Why did my renewal cost more?"
+        },
+        "output": {
+          "label": "billing"
+        },
+        "entityId": "train4",
+        "metadata": {
+          "mode": "live",
+          "task": "support-intent",
+          "segment": "billing",
+          "latencyMs": 776.5536669999997,
+          "inputTokens": 127,
+          "outputTokens": 12
+        },
+        "revision": 1,
+        "artifacts": {
+          "model": "gpt-5.4-mini",
+          "prompt": "247089801e1ad74a2dd716cf8c34490cda979f02081014f82b67228f9b260be7"
+        },
+        "createdAt": "2026-09-06T18:30:11.209Z",
+        "episodeId": "c4",
+        "inputHash": "e38e2d044b016c800362cbe9e92959a7919cf2568b89425b4b6a8b8835d9b629",
+        "namespace": "release/alpha-1-live-2026-09-06",
+        "startedAt": "2026-01-22T00:00:00Z",
+        "updatedAt": "2026-09-06T18:30:11.209Z"
+      },
+      {
+        "id": "prediction_c5_247089801e1ad74a2dd716cf8c34490cda979f02081014f82b67228f9b260be7",
+        "kind": "prediction",
+        "input": {
+          "text": "The invoice includes the wrong tax."
+        },
+        "output": {
+          "label": "billing"
+        },
+        "entityId": "train5",
+        "metadata": {
+          "mode": "live",
+          "task": "support-intent",
+          "segment": "billing",
+          "latencyMs": 771.7847079999992,
+          "inputTokens": 127,
+          "outputTokens": 12
+        },
+        "revision": 1,
+        "artifacts": {
+          "model": "gpt-5.4-mini",
+          "prompt": "247089801e1ad74a2dd716cf8c34490cda979f02081014f82b67228f9b260be7"
+        },
+        "createdAt": "2026-09-06T18:30:11.999Z",
+        "episodeId": "c5",
+        "inputHash": "b32a6e8b52628a25620c01cceaa1272c3fd686639acfde614dec24f4c8ca2d57",
+        "namespace": "release/alpha-1-live-2026-09-06",
+        "startedAt": "2026-01-29T00:00:00Z",
+        "updatedAt": "2026-09-06T18:30:11.999Z"
+      },
+      {
+        "id": "prediction_c6_247089801e1ad74a2dd716cf8c34490cda979f02081014f82b67228f9b260be7",
+        "kind": "prediction",
+        "input": {
+          "text": "I cannot sign in to my account."
+        },
+        "output": {
+          "label": "account_access"
+        },
+        "entityId": "train6",
+        "metadata": {
+          "mode": "live",
+          "task": "support-intent",
+          "segment": "account_access",
+          "latencyMs": 1161.4373329999999,
+          "inputTokens": 128,
+          "outputTokens": 13
+        },
+        "revision": 1,
+        "artifacts": {
+          "model": "gpt-5.4-mini",
+          "prompt": "247089801e1ad74a2dd716cf8c34490cda979f02081014f82b67228f9b260be7"
+        },
+        "createdAt": "2026-09-06T18:30:13.188Z",
+        "episodeId": "c6",
+        "inputHash": "115b222d95cba7cd55c049d200db36353c82ae5e9d577d4419e41c309d930e52",
+        "namespace": "release/alpha-1-live-2026-09-06",
+        "startedAt": "2026-01-30T00:00:00Z",
+        "updatedAt": "2026-09-06T18:30:13.188Z"
+      }
+    ]
+  }
+}

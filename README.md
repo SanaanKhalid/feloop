@@ -100,7 +100,7 @@ Default automation only recommends. Experimental auto-apply needs explicit opt-i
 allowed targets, passing metric gates and low-risk prompt/routing changes. Callbacks
 run in your process; cancellation is cooperative, **not a sandbox**.
 
-The complete PostgreSQL/OpenAI starter includes real prompt selection, exact-match
+The complete PostgreSQL/OpenAI or Azure OpenAI starter includes real prompt selection, exact-match
 holdout evaluation, review, rollback and recovery. Live mode is opt-in, requires
-your model/key/database, sends data to OpenAI and may incur charges. Its small
+your model/provider credentials/database, sends data to the selected provider and may incur charges. Its small
 synthetic dataset is a mechanics demonstration, not evidence of production ROI.

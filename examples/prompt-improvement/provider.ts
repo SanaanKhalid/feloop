@@ -20,22 +20,23 @@ export interface GenerationProvider {
   readonly model: string;
   generate(input: GenerateInput): Promise<Generation>;
 }
-export class OpenAIProvider implements GenerationProvider {
+interface ResponseOptions {
+  model: string;
+  maximumRequests?: number;
+  maximumOutputTokens?: number;
+  maximumInputBytes?: number;
+  fetch?: typeof fetch;
+}
+class ResponsesProvider implements GenerationProvider {
   readonly mode = "live" as const;
   readonly model: string;
   private requests = 0;
   constructor(
-    private readonly options: {
-      apiKey: string;
-      model: string;
-      maximumRequests?: number;
-      maximumOutputTokens?: number;
-      maximumInputBytes?: number;
-      fetch?: typeof fetch;
-    },
+    private readonly options: ResponseOptions,
+    private readonly endpoint: string,
+    private readonly authenticate: (signal: AbortSignal) => Promise<Record<string, string>>,
   ) {
-    nonempty(options.apiKey, "OPENAI_API_KEY");
-    nonempty(options.model, "OPENAI_MODEL");
+    nonempty(options.model, "model/deployment");
     this.model = options.model;
     integer(options.maximumRequests ?? 80, "maximumRequests");
     integer(options.maximumOutputTokens ?? 2048, "maximumOutputTokens");
@@ -48,15 +49,19 @@ export class OpenAIProvider implements GenerationProvider {
       throw new Error("Model request budget exhausted.");
     this.requests++;
     const started = performance.now();
+    const signal = AbortSignal.any([input.signal, AbortSignal.timeout(60000)]);
+    const authentication = await this.authenticate(signal);
+    signal.throwIfAborted();
     const response = await (this.options.fetch ?? fetch)(
-      "https://api.openai.com/v1/responses",
+      this.endpoint,
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${this.options.apiKey}`,
+          ...authentication,
           "Content-Type": "application/json",
         },
-        signal: AbortSignal.any([input.signal, AbortSignal.timeout(60000)]),
+        signal,
+        redirect: "error",
         body: JSON.stringify({
           model: this.model,
           store: false,
@@ -116,5 +121,38 @@ export class OpenAIProvider implements GenerationProvider {
       outputTokens: tokens("output_tokens"),
       latencyMs: performance.now() - started,
     };
+  }
+}
+
+export class OpenAIProvider extends ResponsesProvider {
+  constructor(options: ResponseOptions & { apiKey: string }) {
+    nonempty(options.apiKey, "OPENAI_API_KEY");
+    super(options, "https://api.openai.com/v1/responses", async () => ({
+      Authorization: `Bearer ${options.apiKey}`,
+    }));
+  }
+}
+
+export class AzureOpenAIProvider extends ResponsesProvider {
+  constructor(options: ResponseOptions & {
+    endpoint: string;
+    apiKey?: string;
+    tokenProvider?: (signal: AbortSignal) => Promise<string>;
+  }) {
+    const endpoint = new URL(options.endpoint);
+    if (endpoint.protocol !== "https:" || endpoint.username || endpoint.password ||
+        endpoint.search || endpoint.hash || endpoint.pathname !== "/")
+      throw new Error("Azure endpoint must be an HTTPS resource origin without a path or credentials.");
+    if (Boolean(options.apiKey) === Boolean(options.tokenProvider))
+      throw new Error("Configure exactly one Azure API key or token provider.");
+    if (options.apiKey) nonempty(options.apiKey, "AZURE_OPENAI_API_KEY");
+    super(options, new URL("openai/v1/responses", endpoint).href, async (signal) => {
+      if (options.tokenProvider) {
+        const token = await options.tokenProvider(signal);
+        nonempty(token, "Azure authentication token");
+        return { Authorization: `Bearer ${token}` };
+      }
+      return { "api-key": options.apiKey! };
+    });
   }
 }

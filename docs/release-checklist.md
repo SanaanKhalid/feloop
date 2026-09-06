@@ -32,7 +32,8 @@ does not publish a package, change visibility, deploy Sites/Fern or call a live 
 
 ## Mandatory live-model verification
 
-Configure your own test database, namespace, OpenAI key and explicit model. Review
+Configure your own test database, namespace, OpenAI credentials and explicit model
+(or Azure OpenAI endpoint, deployment and key/Entra token). Review
 data-transfer and cost limits in the starter runbook. Do not send real customer data
 for the initial smoke. Initialize explicitly, then run:
 
