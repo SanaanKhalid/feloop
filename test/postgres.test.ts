@@ -16,7 +16,7 @@ import {
   PromptStarter,
   FixtureProvider,
 } from "../examples/prompt-improvement/workflow.js";
-const connectionString = process.env.FELOOP_TEST_DATABASE_URL;
+const connectionString = process.env.LOOPITER_TEST_DATABASE_URL;
 test(
   "PostgreSQL: conformance, independent-process races, starter and receipt failure recovery",
   { skip: !connectionString },

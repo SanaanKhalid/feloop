@@ -1,7 +1,7 @@
 # Integrating an application
 
 `examples/feedback-capture.ts` demonstrates synthetic local feedback capture.
-Feloop connects to an application through developer-owned instrumentation and adapters.
+Loopiter connects to an application through developer-owned instrumentation and adapters.
 
 An integration should choose an authorized
 namespace, version predictions, record verified operator corrections (not infer

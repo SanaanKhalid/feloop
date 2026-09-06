@@ -23,12 +23,12 @@ The v1 JSON store is already its full export: `{version:1, executions, signals,
 candidates}`. Copy/back it up using your normal filesystem tooling. Import explicitly:
 
 ```sh
-npx feloop import-v1 --input ./backup-v1.json --file ./imported-v2.json --namespace support/dev
-npx feloop export --file ./imported-v2.json --namespace support/dev
+npx loopiter import-v1 --input ./backup-v1.json --file ./imported-v2.json --namespace support/dev
+npx loopiter export --file ./imported-v2.json --namespace support/dev
 ```
 
 These commands are available after tarball installation/publication. To run from
-source use `node dist/src/cli.js` in place of `npx feloop` after `npm run build`.
+source use `node dist/src/cli.js` in place of `npx loopiter` after `npm run build`.
 The CLI refuses identical input/output paths. No source file is rewritten. The
 second command emits a namespace snapshot to stdout; it is not a v1 import format
 or a database backup/restore service.
@@ -45,3 +45,16 @@ the original JSON. They never create approvals, attempts or active pointers.
 Unknown predecessors cannot be reconstructed honestly. Importing history does not
 change your currently deployed artifact; adopt that artifact as an explicit baseline
 through your new deployment adapter, then evaluate fresh candidates.
+# Renaming from Feloop to Loopiter
+
+The renamed package is prepared but not yet published. Build it from source with
+`npm ci && npm pack`, then install the generated tarball in your application.
+Change imports from `feloop` to `loopiter` (including `/postgres` and `/testing`),
+the CLI command to `loopiter`, and `FeloopError` to `LoopiterError`.
+For the starter and PostgreSQL tests, rename `FELOOP_*` environment variables to
+`LOOPITER_*`. These are breaking interface changes; no old-name aliases are provided.
+
+Keep your existing database and namespace. SQL table names and advisory-lock keys
+retain their legacy `feloop` identifiers deliberately: changing them would hide
+existing data or break coordination with older clients. No schema rename is needed.
+Existing service URLs and historical release reports retain their original identities.

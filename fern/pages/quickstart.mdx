@@ -2,17 +2,12 @@
 title: Quickstart
 ---
 
-Use Node 22 or 24. Install the published alpha in your application:
+Use Node 22 or 24. Loopiter is the new name of Feloop. The renamed npm package
+is not published yet. Start from the source repository:
 
 ```sh
-npm install feloop@0.2.0-alpha.1
-```
-
-For the complete standalone starter, clone the public source repository:
-
-```sh
-git clone https://github.com/SanaanKhalid/feloop.git
-cd feloop
+git clone https://github.com/SanaanKhalid/feloop.git loopiter
+cd loopiter
 npm ci
 npm test
 npm run starter -- demo
@@ -25,7 +20,10 @@ explicitly approves its candidate, changes a registry-selected prompt and rolls 
 back. The second demonstrates a failed gate. Neither is a claimed live-model result.
 
 The starter is source-only; the npm package contains the SDK and migrations.
-Use `feloop@alpha` to follow the alpha channel, or pin the version above.
+Run `npm pack` in the checkout, then install the generated tarball in your application
+with `npm install /absolute/path/to/loopiter-0.2.0-alpha.1.tgz`.
+The existing published `feloop@0.2.0-alpha.1` is a historical release; it does not
+contain the renamed CLI, error class, or environment variables.
 
 ## Connect your PostgreSQL database
 
@@ -35,8 +33,8 @@ request. The equivalent explicit helper is shown below. Constructors never migra
 
 ```typescript
 import { Pool } from 'pg';
-import { FeedbackLoop } from 'feloop';
-import { PostgresStore, migratePostgres } from 'feloop/postgres';
+import { FeedbackLoop } from 'loopiter';
+import { PostgresStore, migratePostgres } from 'loopiter/postgres';
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error('Set DATABASE_URL explicitly.');
@@ -63,7 +61,7 @@ episodes with verified labels before choosing analysis thresholds.
 ## Complete live starter
 
 The [classification starter](/get-started/classification-starter) is the complete command runbook (also included in the repository).
-Set `DATABASE_URL`, `FELOOP_NAMESPACE`, `OPENAI_API_KEY`, `OPENAI_MODEL` privately,
+Set `DATABASE_URL`, `LOOPITER_NAMESPACE`, `OPENAI_API_KEY`, `OPENAI_MODEL` privately,
 or use the documented Azure endpoint/deployment and key or Entra-token configuration.
 No default model is guessed. Live model commands require `--live`, send selected
 text to your selected OpenAI or Azure OpenAI provider, may incur charges and default to 80 requests/2,048 output tokens

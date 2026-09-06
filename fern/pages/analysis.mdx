@@ -7,7 +7,7 @@ indexes, and prioritizes recurring scored segments. It does not embed or underst
 arbitrary conversations, prove causality or estimate a probability of improvement.
 
 ```typescript
-import { FeedbackLoop, InMemoryStore } from 'feloop';
+import { FeedbackLoop, InMemoryStore } from 'loopiter';
 const loop = new FeedbackLoop({ store: new InMemoryStore(), namespace: 'analysis/dev' });
 const findings = await loop.analyze({
   dimensions: ['metadata.intent', 'artifacts.prompt'], maximumDimensionDepth: 2,

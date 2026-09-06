@@ -14,7 +14,7 @@ function flag(name: string): string | undefined {
 async function main() {
   if (!command || command === "--help") {
     console.log(
-      "Feloop alpha (local JSON development tools)\n analyze --file STATE --namespace NAME --dimensions metadata.task\n candidates|events --file STATE --namespace NAME\n export --file STATE --namespace NAME (writes JSON to stdout)\n import-v1 --input OLD --file NEW --namespace NAME\n Production/starter commands: see the Fern quickstart.",
+      "Loopiter alpha (local JSON development tools)\n analyze --file STATE --namespace NAME --dimensions metadata.task\n candidates|events --file STATE --namespace NAME\n export --file STATE --namespace NAME (writes JSON to stdout)\n import-v1 --input OLD --file NEW --namespace NAME\n Production/starter commands: see the Fern quickstart.",
     );
     return;
   }

@@ -272,7 +272,7 @@ export class SelfImprovementController {
               }
               controller.signal.throwIfAborted();
               candidate = await this.loop.approveCandidate(candidate.id, {
-                actor: "feloop/experimental-auto-apply",
+                actor: "loopiter/experimental-auto-apply",
                 evaluationId: candidate.evaluations.at(-1)!.id,
               });
               const attempt = await this.loop.deployCandidate(candidate.id, {

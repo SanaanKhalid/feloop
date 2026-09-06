@@ -3,7 +3,7 @@
 instances:
   - url: feloop.docs.buildwithfern.com
 
-title: Feloop Documentation
+title: Loopiter Documentation
 default-language: typescript
 favicon: assets/favicon.svg
 

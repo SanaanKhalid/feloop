@@ -2,7 +2,7 @@ import { Pool } from "pg";
 import { FeedbackLoop } from "../src/index.js";
 import { PostgresStore } from "../src/postgres.js";
 const pool = new Pool({
-  connectionString: process.env.FELOOP_TEST_DATABASE_URL,
+  connectionString: process.env.LOOPITER_TEST_DATABASE_URL,
 });
 const loop = new FeedbackLoop({
   store: new PostgresStore(pool),

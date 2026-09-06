@@ -5,7 +5,7 @@ import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("..", import.meta.url));
-const temporary = await mkdtemp(join(tmpdir(), "feloop-package-"));
+const temporary = await mkdtemp(join(tmpdir(), "loopiter-package-"));
 function run(command, args, cwd) {
   const result = spawnSync(command, args, {
     cwd,
@@ -26,7 +26,7 @@ try {
   await writeFile(
     join(temporary, "package.json"),
     JSON.stringify({
-      name: "feloop-clean-consumer",
+      name: "loopiter-clean-consumer",
       private: true,
       type: "module",
     }),
@@ -45,14 +45,14 @@ try {
     temporary,
   );
   const installed = JSON.parse(
-    await readFile(join(temporary, "node_modules/feloop/package.json"), "utf8"),
+    await readFile(join(temporary, "node_modules/loopiter/package.json"), "utf8"),
   );
   assert.equal(installed.version, "0.2.0-alpha.1");
   assert.equal(installed.license, "MIT");
-  assert.equal(installed.bin?.feloop, "dist/src/cli.js");
+  assert.equal(installed.bin?.loopiter, "dist/src/cli.js");
   assert.equal(Object.keys(installed.dependencies ?? {}).length, 0);
   assert.match(
-    await readFile(join(temporary, "node_modules/feloop/LICENSE"), "utf8"),
+    await readFile(join(temporary, "node_modules/loopiter/LICENSE"), "utf8"),
     /MIT License/,
   );
   await assert.rejects(
@@ -61,9 +61,9 @@ try {
   await writeFile(
     join(temporary, "consumer.mts"),
     `
-import { FeedbackLoop, InMemoryStore } from 'feloop';
-import { PostgresStore, migratePostgres } from 'feloop/postgres';
-import { runStoreConformance } from 'feloop/testing';
+import { FeedbackLoop, InMemoryStore } from 'loopiter';
+import { PostgresStore, migratePostgres } from 'loopiter/postgres';
+import { runStoreConformance } from 'loopiter/testing';
 const store = new InMemoryStore();
 const loop = new FeedbackLoop({ store, namespace: 'tarball' });
 await loop.recordExecution({ id: 'installed', kind: 'prediction' });
@@ -100,7 +100,7 @@ console.log('Clean installed tarball: imports, declarations, capture, conformanc
   run(process.execPath, ["built/consumer.mjs"], temporary);
   run(
     process.execPath,
-    ["node_modules/.bin/feloop", "--help"],
+    ["node_modules/.bin/loopiter", "--help"],
     temporary,
   );
 } finally {

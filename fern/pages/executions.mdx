@@ -14,7 +14,7 @@ first. Each client is bound to one namespace; public record inputs do not accept
 second namespace field.
 
 ```typescript
-import { FeedbackLoop, InMemoryStore } from 'feloop';
+import { FeedbackLoop, InMemoryStore } from 'loopiter';
 const loop = new FeedbackLoop({ store: new InMemoryStore(), namespace: 'example/dev' });
 const turn = await loop.recordExecution({
   id: 'turn-1', kind: 'turn', episodeId: 'ticket-1', entityId: 'pseudonymous-17',

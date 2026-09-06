@@ -1,6 +1,13 @@
 # Changelog
 
-## 0.2.0-alpha.1 — prepared, not yet published
+## Loopiter rename — unreleased
+
+- Rename the product, SDK package, CLI, error class and starter environment variables.
+- Keep existing PostgreSQL table names and advisory-lock keys to preserve stored data
+  and coordination with existing deployments. No database rename is required.
+- Existing Feloop npm releases, deployment addresses and historical reports are unchanged.
+
+## 0.2.0-alpha.1 — published as feloop
 
 Breaking alpha; Node.js 22/24, MIT, ESM, dependency-free core.
 

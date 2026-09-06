@@ -20,7 +20,7 @@ applies, or rolled_back when reversed. Rolled-back candidates cannot be silently
 redeployed. Imported old history lives outside this active lifecycle.
 
 Evaluation snapshots the current revision before calling the evaluator. When it
-returns, Feloop verifies the revision has not changed. A human rejection, a newer
+returns, Loopiter verifies the revision has not changed. A human rejection, a newer
 evaluation or approval wins over stale results. Approval requires the exact latest
 passing evaluation ID and the same candidate content/evidence. It records the actor
 and timestamp; the application must authorize that actor.

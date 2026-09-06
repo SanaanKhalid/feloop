@@ -19,15 +19,15 @@ function required(name: string) {
 async function main() {
   if (command === "help") {
     console.log(
-      "Offline: npm run starter -- demo [--reject]\nLive: npm run starter -- init|seed|predict|correct|recommend|evaluate|approve|deploy|rollback|reconcile|inspect --live\nSet DATABASE_URL, FELOOP_NAMESPACE, OPENAI_MODEL, OPENAI_API_KEY.\nCommands use --candidate ID, --attempt ID, --actor NAME, --text TEXT, --execution ID, --label LABEL as applicable.\n--report PATH saves an exclusive (non-overwriting) JSON report.",
+      "Offline: npm run starter -- demo [--reject]\nLive: npm run starter -- init|seed|predict|correct|recommend|evaluate|approve|deploy|rollback|reconcile|inspect --live\nSet DATABASE_URL, LOOPITER_NAMESPACE, OPENAI_MODEL, OPENAI_API_KEY.\nCommands use --candidate ID, --attempt ID, --actor NAME, --text TEXT, --execution ID, --label LABEL as applicable.\n--report PATH saves an exclusive (non-overwriting) JSON report.",
     );
     return;
   }
   if (command !== "demo" && !args.includes("--live"))
     throw new Error("Live commands require explicit --live.");
   const live = command !== "demo";
-  const namespace = live ? process.env.FELOOP_NAMESPACE : "starter/offline";
-  if (!namespace) throw new Error("FELOOP_NAMESPACE is required.");
+  const namespace = live ? process.env.LOOPITER_NAMESPACE : "starter/offline";
+  if (!namespace) throw new Error("LOOPITER_NAMESPACE is required.");
   if (live && !process.env.DATABASE_URL)
     throw new Error("DATABASE_URL is required.");
   const pool = live
@@ -43,9 +43,9 @@ async function main() {
     ? new PostgresPromptRegistry(pool, namespace)
     : new MemoryPromptRegistry();
   const modelCommands = ["seed", "predict", "recommend", "evaluate", "smoke"];
-  const providerName = process.env.FELOOP_PROVIDER ?? "openai";
+  const providerName = process.env.LOOPITER_PROVIDER ?? "openai";
   if (live && providerName !== "openai" && providerName !== "azure")
-    throw new Error("FELOOP_PROVIDER must be openai or azure.");
+    throw new Error("LOOPITER_PROVIDER must be openai or azure.");
   if (live && modelCommands.includes(command))
     console.error(
       `LIVE MODE: request text, corrections or holdout fixtures will be sent to ${providerName === "azure" ? "Azure OpenAI" : "OpenAI"} and may incur charges. store:false is not a zero-retention guarantee.`,
@@ -56,9 +56,9 @@ async function main() {
       : new FixtureProvider(args.includes("--reject"));
   function createLiveProvider() {
     const limits = {
-      maximumRequests: Number(process.env.FELOOP_MAX_REQUESTS ?? 80),
-      maximumOutputTokens: Number(process.env.FELOOP_MAX_OUTPUT_TOKENS ?? 2048),
-      maximumInputBytes: Number(process.env.FELOOP_MAX_INPUT_BYTES ?? 16384),
+      maximumRequests: Number(process.env.LOOPITER_MAX_REQUESTS ?? 80),
+      maximumOutputTokens: Number(process.env.LOOPITER_MAX_OUTPUT_TOKENS ?? 2048),
+      maximumInputBytes: Number(process.env.LOOPITER_MAX_INPUT_BYTES ?? 16384),
     };
     if (providerName === "azure") {
       const token = process.env.AZURE_OPENAI_AUTH_TOKEN;

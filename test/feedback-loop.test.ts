@@ -18,7 +18,7 @@ test("in-memory adapter conformance", async () => {
   assert.equal((await runStoreConformance(new InMemoryStore())).length, 8);
 });
 test("JSON conformance and reopen persistence", async () => {
-  const path = await mkdtemp(join(tmpdir(), "feloop-json-"));
+  const path = await mkdtemp(join(tmpdir(), "loopiter-json-"));
   const file = join(path, "state.json");
   const store = new JsonFileStore(file);
   try {

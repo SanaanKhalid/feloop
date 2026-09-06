@@ -1,16 +1,16 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { JsonValue, TimeWindow } from "./contracts.js";
-export class FeloopError extends Error {
+export class LoopiterError extends Error {
   constructor(
     readonly code: string,
     message: string,
   ) {
     super(message);
-    this.name = "FeloopError";
+    this.name = "LoopiterError";
   }
 }
 export function fail(code: string, message: string): never {
-  throw new FeloopError(code, message);
+  throw new LoopiterError(code, message);
 }
 export function nonempty(
   value: unknown,
@@ -165,7 +165,7 @@ export async function cancellable<T>(
   const timer = setTimeout(
     () =>
       controller.abort(
-        new FeloopError("timeout", "Callback deadline exceeded."),
+        new LoopiterError("timeout", "Callback deadline exceeded."),
       ),
     timeoutMs,
   );

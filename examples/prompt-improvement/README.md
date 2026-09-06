@@ -25,7 +25,7 @@ evaluate and smoke commands never approve or deploy.
 ## Live, explicitly selected
 
 Use an isolated **developer-owned PostgreSQL 16 or 17 database** and Node 22 or 24.
-Configure `DATABASE_URL`, a fresh `FELOOP_NAMESPACE`, `OPENAI_API_KEY` and an explicit
+Configure `DATABASE_URL`, a fresh `LOOPITER_NAMESPACE`, `OPENAI_API_KEY` and an explicit
 `OPENAI_MODEL` through your shell/secret manager. Do not commit or paste keys into
 issues, source, prompts or reports. The selected model must support Responses strict
 structured outputs; no model is inferred for you.
@@ -40,9 +40,9 @@ Optional environment limits (per command, not a durable account-wide quota):
 
 | Variable | Default |
 | --- | --- |
-| FELOOP_MAX_REQUESTS | 80 |
-| FELOOP_MAX_OUTPUT_TOKENS | 2048 per response |
-| FELOOP_MAX_INPUT_BYTES | 16384 for serialized input text |
+| LOOPITER_MAX_REQUESTS | 80 |
+| LOOPITER_MAX_OUTPUT_TOKENS | 2048 per response |
+| LOOPITER_MAX_INPUT_BYTES | 16384 for serialized input text |
 
 HTTP/provider failures, refusals, incomplete responses, invalid JSON/labels and
 budget exhaustion fail explicitly without automatic retries. Requests have a
@@ -110,7 +110,7 @@ the external change. Inspect shares the same advisory lock and fences a missing
 attempt before returning not_applied. A later apply with a fenced key is rejected.
 
 The SDK's transaction is separate: a registry commit can succeed even when its
-receipt is not finalized in Feloop. The target remains pending and blocks changes.
+receipt is not finalized in Loopiter. The target remains pending and blocks changes.
 Reconciliation reads the registry receipt and completes the SDK transition without
 reapplying. Do not edit pointers/delete attempts to force progress. The tests inject
 failure at preparation/finalization, independent-client races and late operations.
@@ -120,7 +120,7 @@ failure at preparation/finalization, independent-client races and late operation
 After init in a fresh test namespace, explicitly run:
 
 ```sh
-npm run starter -- smoke --live --report ./feloop-live-smoke.json
+npm run starter -- smoke --live --report ./loopiter-live-smoke.json
 ```
 
 This runs live baseline capture, verified synthetic corrections, recommendation and,

@@ -1,13 +1,16 @@
-# Feloop
+# Loopiter
 
 A lightweight TypeScript SDK for **reviewed, evidence-driven AI improvements**.
 Capture executions and feedback, find recurring scored segments, evaluate an
 immutable candidate, approve it, and coordinate deployment or rollback through
-your infrastructure. Feloop is a library, not a hosted service or autonomous trainer.
+your infrastructure. Loopiter is a library, not a hosted service or autonomous trainer.
 
 Published alpha: **0.2.0-alpha.1**, MIT, ESM, Node.js **22 and 24**. No core runtime
 dependencies, telemetry, database driver, scheduler, model client, or background daemon.
-Install from npm with `npm install feloop@0.2.0-alpha.1` (or `feloop@alpha`).
+Loopiter is the new name of Feloop. The renamed npm package has not been published
+yet; use the source checkout below and run `npm pack` to build an installable
+`loopiter-0.2.0-alpha.1.tgz`. Install that tarball in your application with
+`npm install /absolute/path/to/loopiter-0.2.0-alpha.1.tgz`.
 
 [Canonical documentation](https://feloop.docs.buildwithfern.com/get-started/overview)
 · [Starter](examples/prompt-improvement/README.md)
@@ -17,8 +20,8 @@ Install from npm with `npm install feloop@0.2.0-alpha.1` (or `feloop@alpha`).
 ## Try the source and starter
 
 ```sh
-git clone https://github.com/SanaanKhalid/feloop.git
-cd feloop
+git clone https://github.com/SanaanKhalid/feloop.git loopiter
+cd loopiter
 npm ci
 npm test
 npm run starter -- demo
@@ -34,7 +37,7 @@ the standalone starter; its provider-specific code is outside the core package.
 ## Capture a local example
 
 ```typescript
-import { FeedbackLoop, InMemoryStore } from 'feloop';
+import { FeedbackLoop, InMemoryStore } from 'loopiter';
 
 const loop = new FeedbackLoop({
   store: new InMemoryStore(), // Development only; use a conforming DB adapter in production.
@@ -61,15 +64,15 @@ authorized namespaces and verifies correction sources.
 
 ## Bring your own PostgreSQL
 
-Install `pg` in your application. `feloop/postgres` accepts your pool without importing
+Install `pg` in your application. `loopiter/postgres` accepts your pool without importing
 the driver. Construction does not create tables. Review and apply the versioned SQL
 in `migrations/001-feedback-store.sql`, or explicitly call `migratePostgres(pool)`
 with a migration identity. Production request credentials should not need DDL rights.
 
 ```typescript
 import { Pool } from 'pg';
-import { FeedbackLoop } from 'feloop';
-import { PostgresStore, migratePostgres } from 'feloop/postgres';
+import { FeedbackLoop } from 'loopiter';
+import { PostgresStore, migratePostgres } from 'loopiter/postgres';
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error('Set DATABASE_URL explicitly.');

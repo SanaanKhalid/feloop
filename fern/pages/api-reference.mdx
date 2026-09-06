@@ -3,8 +3,8 @@ title: TypeScript API
 ---
 
 The package's generated declarations are the precise source of type signatures.
-Import core types/classes from `feloop`, database helpers from `feloop/postgres`,
-and conformance tests from `feloop/testing`. Core never imports the latter modules.
+Import core types/classes from `loopiter`, database helpers from `loopiter/postgres`,
+and conformance tests from `loopiter/testing`. Core never imports the latter modules.
 The source implementation is in the repository's `src/` directory.
 
 ## FeedbackLoop
@@ -48,7 +48,7 @@ database path. `runStoreConformance(store)` creates/deletes only random test nam
 `importLegacyV1(loop, document)` imports scoped executions/signals and archives old
 candidate history without activation. See the repository migration guide.
 
-`FeloopError.code` includes invalid_input, invalid_store, conflict, not_found,
+`LoopiterError.code` includes invalid_input, invalid_store, conflict, not_found,
 invalid_transition, integrity_error, namespace_mismatch, query_limit and timeout.
 Deployment uncertainty exposes code deployment_pending and attemptId, with the
 original cause retained. Do not classify all errors as retryable. A timeout may have

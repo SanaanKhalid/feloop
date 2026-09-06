@@ -56,7 +56,7 @@ inspects, never blindly reapplies. Missing/malformed receipts remain pending.
 Only the active deployed candidate can be rolled back. Its recorded predecessor
 must still be eligible; rolled-back versions stay rolled_back. A → B → C followed
 by rollback C then B restores B then A, never C again. The initial external baseline
-may have no Feloop candidate; its version is retained in the receipt.
+may have no Loopiter candidate; its version is retained in the receipt.
 
 For an incident: disable new deployments, list pending attempts/events, inspect
 external receipts, reconcile, verify the serving version, and explicitly roll back
@@ -64,6 +64,6 @@ if needed. Resolve uncertainty before allowing another target change. Do not del
 attempts, edit active pointers manually or restore an old database snapshot while
 external versions continue changing. Adapters must reconcile after a disaster restore.
 
-Manual and controller-driven deployment use the same core implementation. Feloop
+Manual and controller-driven deployment use the same core implementation. Loopiter
 coordinates retry-safe operations; it does **not** claim universal exactly-once
 execution across databases and arbitrary external systems.

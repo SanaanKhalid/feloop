@@ -2,7 +2,18 @@
 title: Migrating from the prototype
 ---
 
-# Migration from the private v0.1 prototype
+## Feloop to Loopiter
+
+The renamed package is not published yet; use the quickstart's source/tarball
+installation. Change imports to `loopiter`, `loopiter/postgres` and `loopiter/testing`,
+the CLI to `loopiter`, and `FeloopError` to `LoopiterError`. Rename starter and test
+environment variables from `FELOOP_*` to `LOOPITER_*`.
+
+Keep your database and namespaces. Legacy SQL table names and advisory-lock keys
+are intentionally unchanged to preserve data and cross-version coordination.
+Existing service URLs and historical release reports also retain their old identities.
+
+## Migration from the private v0.1 prototype
 
 This is a clean breaking release. Stop old writers and back up the original JSON
 file before importing. Never point the v2 JsonFileStore at a v1 file: it refuses it.
@@ -27,12 +38,12 @@ The v1 JSON store is already its full export: `{version:1, executions, signals,
 candidates}`. Copy/back it up using your normal filesystem tooling. Import explicitly:
 
 ```sh
-npx feloop import-v1 --input ./backup-v1.json --file ./imported-v2.json --namespace support/dev
-npx feloop export --file ./imported-v2.json --namespace support/dev
+npx loopiter import-v1 --input ./backup-v1.json --file ./imported-v2.json --namespace support/dev
+npx loopiter export --file ./imported-v2.json --namespace support/dev
 ```
 
 These commands are available after tarball installation/publication. To run from
-source use `node dist/src/cli.js` in place of `npx feloop` after `npm run build`.
+source use `node dist/src/cli.js` in place of `npx loopiter` after `npm run build`.
 The CLI refuses identical input/output paths. No source file is rewritten. The
 second command emits a namespace snapshot to stdout; it is not a v1 import format
 or a database backup/restore service.

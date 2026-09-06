@@ -14,9 +14,9 @@ function Mark() {
 function SiteHeader() {
   return (
     <header className="site-header">
-      <Link href="/" className="brand" aria-label="Feloop home">
+      <Link href="/" className="brand" aria-label="Loopiter home">
         <Mark />
-        <span>Feloop</span>
+        <span>Loopiter</span>
       </Link>
       <nav className="main-nav" aria-label="Main navigation">
         <a href="#how-it-works">How it works</a>
@@ -30,7 +30,7 @@ function SiteHeader() {
   );
 }
 
-const code = `import { FeedbackLoop, InMemoryStore } from "feloop"
+const code = `import { FeedbackLoop, InMemoryStore } from "loopiter"
 
 const loop = new FeedbackLoop({
   store: new InMemoryStore(), // local demo
@@ -80,7 +80,7 @@ export default function Home() {
             <div className="eyebrow"><span>CONTROL PLANE</span> FOR CONTINUOUS AI IMPROVEMENT</div>
             <h1>AI systems that learn from what happens next.</h1>
             <p className="hero-lede">
-              Feloop connects production behavior to verified outcomes, finds recurring failure modes, and turns evidence into governed improvements.
+              Loopiter connects production behavior to verified outcomes, finds recurring failure modes, and turns evidence into governed improvements.
             </p>
             <div className="hero-actions">
               <a href={docsHref()} className="button button-primary">READ THE DOCS <span>→</span></a>
@@ -89,7 +89,7 @@ export default function Home() {
             <p className="hero-note">Embed it in an existing worker. Keep your models, database, and deployment stack.</p>
           </div>
 
-          <div className="hero-console" aria-label="Feloop TypeScript example">
+          <div className="hero-console" aria-label="Loopiter TypeScript example">
             <div className="console-bar">
               <div className="console-title"><span className="status-light" /> feedback-loop.ts</div>
               <span>TYPESCRIPT</span>
@@ -191,7 +191,7 @@ export default function Home() {
         </section>
 
         <footer className="site-footer">
-          <div className="brand"><Mark /><span>Feloop</span></div>
+          <div className="brand"><Mark /><span>Loopiter</span></div>
           <p>A lightweight control plane for measurable AI improvement.</p>
           <div><a href={docsHref()}>Docs</a><a href="https://github.com/SanaanKhalid/feloop">GitHub</a><span>v0.2.0-alpha.1</span></div>
         </footer>

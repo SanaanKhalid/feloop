@@ -2,7 +2,7 @@
 title: Security and privacy
 ---
 
-Feloop sends no telemetry. The core does not call any provider. The optional live
+Loopiter sends no telemetry. The core does not call any provider. The optional live
 starter sends selected text to OpenAI or Azure OpenAI using your credentials; it requires explicit live
 selection and configured model. `store:false` is not zero retention, consent or
 compliance certification. Review provider terms and your data governance first.
@@ -39,7 +39,7 @@ labels are supplied by trusted recipes; auto-apply is experimental and narrowly 
 
 ## Deletion and reporting
 
-`loop.deleteNamespace(exactNamespace)` explicitly erases that namespace's Feloop
+`loop.deleteNamespace(exactNamespace)` explicitly erases that namespace's Loopiter
 history. Stop writers and reconcile pending deployments first. This does not remove
 external artifacts, OpenAI copies, logs or backups. No automated retention service runs.
 

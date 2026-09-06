@@ -6,7 +6,7 @@ backports. Breaking changes may occur between alpha releases.
 ## Reporting
 
 Use GitHub's **Report a vulnerability** / private advisory flow on
-[SanaanKhalid/feloop](https://github.com/SanaanKhalid/feloop/security/advisories/new).
+[SanaanKhalid/loopiter](https://github.com/SanaanKhalid/feloop/security/advisories/new).
 The maintainer must enable private vulnerability reporting before public release.
 If it is unavailable, open a non-sensitive issue asking for a private contact channel;
 do not include exploit details, credentials, customer records or logs publicly.
@@ -29,6 +29,6 @@ the affected trust boundary. No third-party/customer testing is authorized by th
 - Coordinate namespace deletion with stopped writers and resolved attempts. Deletion
   erases evidence/history, not external deployments, provider copies or backups.
 
-Feloop sends no telemetry. The optional starter explicitly sends selected text to
+Loopiter sends no telemetry. The optional starter explicitly sends selected text to
 OpenAI or Azure OpenAI in live mode. `store:false` is not a zero-retention or compliance guarantee.
 Review your provider agreement and retention configuration before sending real data.

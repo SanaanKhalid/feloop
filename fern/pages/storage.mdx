@@ -2,11 +2,11 @@
 title: Storage adapters
 ---
 
-Bring your own database. The core imports no driver. `feloop/postgres` accepts a
+Bring your own database. The core imports no driver. `loopiter/postgres` accepts a
 developer-owned `pg` pool through a structural interface; install `pg` in your app.
 `migratePostgres(pool)` is an explicit setup action running versioned SQL. Construction
 does not connect, migrate, create a database or change customer tables automatically.
-The reference SQL uses Feloop-prefixed tables; review conflicts before adopting it.
+The reference SQL uses Loopiter-prefixed tables; review conflicts before adopting it.
 
 ## v2 contract
 
@@ -38,8 +38,8 @@ does not end your pool; your application controls its lifetime.
 ## Conformance
 
 ```typescript
-import { InMemoryStore } from 'feloop';
-import { runStoreConformance } from 'feloop/testing';
+import { InMemoryStore } from 'loopiter';
+import { runStoreConformance } from 'loopiter/testing';
 const store = new InMemoryStore();
 console.log(await runStoreConformance(store));
 await store.close();

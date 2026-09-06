@@ -1,6 +1,6 @@
 # Reliable public alpha release checklist
 
-Target: `feloop@0.2.0-alpha.1`, npm tag **alpha**, MIT, Node 22/24.
+Target: `loopiter@0.2.0-alpha.1`, npm tag **alpha**, MIT, Node 22/24.
 This file prepares intentional release actions; no publication or visibility change
 is performed by the build, tests, starter or CI.
 
@@ -8,7 +8,7 @@ is performed by the build, tests, starter or CI.
 
 - [ ] Review this breaking API and `SUPPORTED.md`; no unsafe v0.1 wrappers.
 - [ ] `npm ci`, `npm run typecheck`, `npm test` on supported Node releases.
-- [ ] Supply an isolated `FELOOP_TEST_DATABASE_URL`; run the tests on PostgreSQL 16/17.
+- [ ] Supply an isolated `LOOPITER_TEST_DATABASE_URL`; run the tests on PostgreSQL 16/17.
       The PostgreSQL test must not be skipped in the release matrix.
 - [ ] Pass development/PG adapter conformance, independent-process CAS, independent-pool
       target contention, prepare/apply/receipt/rollback faults and reconciliation.
@@ -38,7 +38,7 @@ data-transfer and cost limits in the starter runbook. Do not send real customer 
 for the initial smoke. Initialize explicitly, then run:
 
 ```sh
-npm run starter -- smoke --live --report ./feloop-live-smoke.json
+npm run starter -- smoke --live --report ./loopiter-live-smoke.json
 ```
 
 Retain the actual report with model/prompt/dataset versions, case results, gates,
@@ -51,7 +51,7 @@ usefulness on production data or model reliability.
 ## Publisher and public-access checks — owner actions
 
 1. Verify the intended npm account with `npm whoami` and its MFA/publishing policy.
-2. Recheck `npm view feloop name version maintainers --json`. E404 is not a reservation
+2. Recheck `npm view loopiter name version maintainers --json`. E404 is not a reservation
    or proof of permission to claim the name. If it exists, verify your publisher rights
    before any publication. Do not invent or silently switch the package name.
 3. Review the final `npm pack --dry-run`, actual tarball and MIT license contents.

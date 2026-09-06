@@ -7,7 +7,7 @@ import {
   pageOptions,
   validateRecord,
 } from "./stores/in-memory.js";
-/** Structural interface: pass your own pg.Pool; feloop never imports pg. */
+/** Structural interface: pass your own pg.Pool; loopiter never imports pg. */
 export interface PgClientLike {
   query(
     text: string,
@@ -126,7 +126,7 @@ export class PostgresStore implements FeedbackStore {
     };
     try {
       await client.query("BEGIN");
-      // Serializes Feloop writers/read snapshots within a namespace, across processes.
+      // Serializes Loopiter writers/read snapshots within a namespace, across processes.
       await client.query(
         "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
         [`feloop/v2/${namespace}`],

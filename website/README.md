@@ -1,4 +1,4 @@
-# Feloop landing page
+# Loopiter landing page
 
 The existing Vinext application builds a Cloudflare Worker and static assets.
 Its design and canonical Fern documentation links are shared across deployments.
@@ -18,7 +18,7 @@ npm run lint
 npm run deploy:cloudflare
 ```
 
-The command builds and deploys the `feloop-website` Worker using the generated
+The command builds and deploys the `loopiter-website` Worker using the generated
 `dist/server/wrangler.json`. Static assets are uploaded from `dist/client`.
 Use `CLOUDFLARE_ACCOUNT_ID` to select the intended account when your login has
 access to multiple accounts. Credentials belong in Wrangler's local authentication
