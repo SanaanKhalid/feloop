@@ -2,11 +2,16 @@
 title: Quickstart
 ---
 
-Use Node 22 or 24. Loopiter is the new name of Feloop. The renamed npm package
-is not published yet. Start from the source repository:
+Use Node 22 or 24. Install the SDK:
 
 ```sh
-git clone https://github.com/SanaanKhalid/feloop.git loopiter
+npm install loopiter@0.2.0-alpha.1
+```
+
+For the complete starter, clone the source repository:
+
+```sh
+git clone https://github.com/SanaanKhalid/loopiter.git loopiter
 cd loopiter
 npm ci
 npm test
@@ -20,8 +25,7 @@ explicitly approves its candidate, changes a registry-selected prompt and rolls 
 back. The second demonstrates a failed gate. Neither is a claimed live-model result.
 
 The starter is source-only; the npm package contains the SDK and migrations.
-Run `npm pack` in the checkout, then install the generated tarball in your application
-with `npm install /absolute/path/to/loopiter-0.2.0-alpha.1.tgz`.
+Use `loopiter@alpha` to follow the alpha channel, or pin the exact version above.
 The existing published `feloop@0.2.0-alpha.1` is a historical release; it does not
 contain the renamed CLI, error class, or environment variables.
 

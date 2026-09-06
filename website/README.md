@@ -3,7 +3,7 @@
 The existing Vinext application builds a Cloudflare Worker and static assets.
 Its design and canonical Fern documentation links are shared across deployments.
 
-Public Cloudflare URL: https://feloop-website.sanaansanaan.workers.dev
+Public Cloudflare URL: https://loopiter-website.sanaansanaan.workers.dev
 
 ## Deploy to your Cloudflare account
 

@@ -65,7 +65,7 @@ try {
     join(root, "website/lib/docs-links.ts"),
     "utf8",
   );
-  assert.ok(docsLinks.includes("https://feloop.docs.buildwithfern.com"));
+  assert.ok(docsLinks.includes("https://loopiter.docs.buildwithfern.com"));
   const redirect = await readFile(
     join(root, "website/app/docs/page.tsx"),
     "utf8",

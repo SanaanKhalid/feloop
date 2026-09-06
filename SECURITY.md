@@ -6,7 +6,7 @@ backports. Breaking changes may occur between alpha releases.
 ## Reporting
 
 Use GitHub's **Report a vulnerability** / private advisory flow on
-[SanaanKhalid/loopiter](https://github.com/SanaanKhalid/feloop/security/advisories/new).
+[SanaanKhalid/loopiter](https://github.com/SanaanKhalid/loopiter/security/advisories/new).
 The maintainer must enable private vulnerability reporting before public release.
 If it is unavailable, open a non-sensitive issue asking for a private contact channel;
 do not include exploit details, credentials, customer records or logs publicly.

@@ -13,7 +13,7 @@ const { d1, r2 } = hostingConfig;
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === 'seatbelt';
 
 const localBindingConfig = {
-  name: 'feloop-website',
+  name: 'loopiter-website',
   compatibility_date: '2026-09-03',
   workers_dev: true,
   main: 'vinext/server/fetch-handler',

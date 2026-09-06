@@ -1,7 +1,7 @@
 # Architecture
 
 The canonical maintained architecture is in
-[Fern](https://feloop.docs.buildwithfern.com/get-started/architecture).
+[Fern](https://loopiter.docs.buildwithfern.com/get-started/architecture).
 The SDK coordinates evidence and transitions. Adapters own persistent transactions
 and external side effects. It does not own model training, scheduling or customer auth.
 

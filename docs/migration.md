@@ -47,8 +47,7 @@ change your currently deployed artifact; adopt that artifact as an explicit base
 through your new deployment adapter, then evaluate fresh candidates.
 # Renaming from Feloop to Loopiter
 
-The renamed package is prepared but not yet published. Build it from source with
-`npm ci && npm pack`, then install the generated tarball in your application.
+Install the renamed package with `npm install loopiter@0.2.0-alpha.1`.
 Change imports from `feloop` to `loopiter` (including `/postgres` and `/testing`),
 the CLI command to `loopiter`, and `FeloopError` to `LoopiterError`.
 For the starter and PostgreSQL tests, rename `FELOOP_*` environment variables to
@@ -57,4 +56,4 @@ For the starter and PostgreSQL tests, rename `FELOOP_*` environment variables to
 Keep your existing database and namespace. SQL table names and advisory-lock keys
 retain their legacy `feloop` identifiers deliberately: changing them would hide
 existing data or break coordination with older clients. No schema rename is needed.
-Existing service URLs and historical release reports retain their original identities.
+Historical release reports retain their original identities.

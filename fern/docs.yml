@@ -1,14 +1,14 @@
 # yaml-language-server: $schema=https://schema.buildwithfern.dev/docs-yml.json
 
 instances:
-  - url: feloop.docs.buildwithfern.com
+  - url: loopiter.docs.buildwithfern.com
 
 title: Loopiter Documentation
 default-language: typescript
 favicon: assets/favicon.svg
 
 logo:
-  href: https://feedbackloop-framework.sanaanyl.chatgpt.site
+  href: https://loopiter-website.sanaansanaan.workers.dev
   dark: assets/logo-dark.svg
   light: assets/logo-light.svg
   right-text: Docs
@@ -47,9 +47,9 @@ layout:
 navbar-links:
   - type: minimal
     text: Home
-    href: https://feedbackloop-framework.sanaanyl.chatgpt.site
+    href: https://loopiter-website.sanaansanaan.workers.dev
   - type: github
-    value: https://github.com/SanaanKhalid/feloop
+    value: https://github.com/SanaanKhalid/loopiter
 
 navigation:
   - section: Get started

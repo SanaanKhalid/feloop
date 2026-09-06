@@ -193,7 +193,7 @@ export default function Home() {
         <footer className="site-footer">
           <div className="brand"><Mark /><span>Loopiter</span></div>
           <p>A lightweight control plane for measurable AI improvement.</p>
-          <div><a href={docsHref()}>Docs</a><a href="https://github.com/SanaanKhalid/feloop">GitHub</a><span>v0.2.0-alpha.1</span></div>
+          <div><a href={docsHref()}>Docs</a><a href="https://github.com/SanaanKhalid/loopiter">GitHub</a><span>v0.2.0-alpha.1</span></div>
         </footer>
       </div>
     </main>

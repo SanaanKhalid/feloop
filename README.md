@@ -7,12 +7,10 @@ your infrastructure. Loopiter is a library, not a hosted service or autonomous t
 
 Published alpha: **0.2.0-alpha.1**, MIT, ESM, Node.js **22 and 24**. No core runtime
 dependencies, telemetry, database driver, scheduler, model client, or background daemon.
-Loopiter is the new name of Feloop. The renamed npm package has not been published
-yet; use the source checkout below and run `npm pack` to build an installable
-`loopiter-0.2.0-alpha.1.tgz`. Install that tarball in your application with
-`npm install /absolute/path/to/loopiter-0.2.0-alpha.1.tgz`.
+Loopiter is the new name of Feloop. Install with
+`npm install loopiter@0.2.0-alpha.1` or follow the alpha channel with `npm install loopiter@alpha`.
 
-[Canonical documentation](https://feloop.docs.buildwithfern.com/get-started/overview)
+[Canonical documentation](https://loopiter.docs.buildwithfern.com/get-started/overview)
 · [Starter](examples/prompt-improvement/README.md)
 · [Capabilities](SUPPORTED.md) · [Migration](docs/migration.md)
 · [Release gates](docs/release-checklist.md) · [Security](SECURITY.md)
@@ -20,7 +18,7 @@ yet; use the source checkout below and run `npm pack` to build an installable
 ## Try the source and starter
 
 ```sh
-git clone https://github.com/SanaanKhalid/feloop.git loopiter
+git clone https://github.com/SanaanKhalid/loopiter.git loopiter
 cd loopiter
 npm ci
 npm test

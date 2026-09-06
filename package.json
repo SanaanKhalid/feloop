@@ -4,7 +4,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/SanaanKhalid/feloop.git"
+    "url": "git+https://github.com/SanaanKhalid/loopiter.git"
   },
   "publishConfig": {
     "access": "public",

@@ -1,4 +1,4 @@
-export const DOCS = 'https://feloop.docs.buildwithfern.com';
+export const DOCS = 'https://loopiter.docs.buildwithfern.com';
 export const legacyDocs: Record<string, string> = {
   overview: '/get-started/overview', installation: '/get-started/quickstart', architecture: '/get-started/architecture',
   analysis: '/core-concepts/pattern-analysis', candidates: '/core-concepts/improvement-candidates',

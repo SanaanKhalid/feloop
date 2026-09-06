@@ -1,6 +1,6 @@
 # Changelog
 
-## Loopiter rename — unreleased
+## Loopiter 0.2.0-alpha.1
 
 - Rename the product, SDK package, CLI, error class and starter environment variables.
 - Keep existing PostgreSQL table names and advisory-lock keys to preserve stored data
