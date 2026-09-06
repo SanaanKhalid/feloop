@@ -29,7 +29,7 @@
     }
   },
   "bin": {
-    "feloop": "./dist/src/cli.js"
+    "feloop": "dist/src/cli.js"
   },
   "files": [
     "dist/src",

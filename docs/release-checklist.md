@@ -16,6 +16,9 @@ is performed by the build, tests, starter or CI.
 - [ ] `npm run test:package`: build-before-pack, clean tarball install, imports/types,
       CLI, packaged migration and no installed `pg` requirement for the SDK.
 - [ ] `npm run test:docs` and `npm run test:fern`. Fern MDX parse warnings fail the gate.
+      CI runs Fern's local validation without credentials; also run authenticated
+      `npx --yes fern-api@5.113.1 check --warnings` before docs publication to check
+      redirects against the deployed site.
 - [ ] Website: `npm ci`, `npm run typecheck`, `npm run lint`, `npm run build`.
 - [ ] Root and website `npm audit --audit-level=high`; resolve high/critical findings
       or retain a specific, reviewed non-applicability justification.

@@ -5,7 +5,9 @@ delete env.npm_config_call;
 delete env.npm_config_package;
 const result = spawnSync(
   "npx",
-  ["--yes", "fern-api@5.113.1", "check", "--warnings"],
+  // CI validates repository content without a Fern account. Comparing redirects
+  // with the deployed site remains part of authenticated publication validation.
+  ["--yes", "fern-api@5.113.1", "check", "--warnings", "--local"],
   { env, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 },
 );
 process.stdout.write(result.stdout ?? "");

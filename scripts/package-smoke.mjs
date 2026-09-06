@@ -49,6 +49,7 @@ try {
   );
   assert.equal(installed.version, "0.2.0-alpha.1");
   assert.equal(installed.license, "MIT");
+  assert.equal(installed.bin?.feloop, "dist/src/cli.js");
   assert.equal(Object.keys(installed.dependencies ?? {}).length, 0);
   assert.match(
     await readFile(join(temporary, "node_modules/feloop/LICENSE"), "utf8"),
@@ -99,7 +100,7 @@ console.log('Clean installed tarball: imports, declarations, capture, conformanc
   run(process.execPath, ["built/consumer.mjs"], temporary);
   run(
     process.execPath,
-    ["node_modules/feloop/dist/src/cli.js", "--help"],
+    ["node_modules/.bin/feloop", "--help"],
     temporary,
   );
 } finally {
