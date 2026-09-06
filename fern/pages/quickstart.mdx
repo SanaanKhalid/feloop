@@ -2,7 +2,13 @@
 title: Quickstart
 ---
 
-Use Node 22 or 24. Before publication, access to the repository is required:
+Use Node 22 or 24. Install the published alpha in your application:
+
+```sh
+npm install feloop@0.2.0-alpha.1
+```
+
+For the complete standalone starter, clone the public source repository:
 
 ```sh
 git clone https://github.com/SanaanKhalid/feloop.git
@@ -18,9 +24,8 @@ calculated from predictions against held-out fixtures. The first fixture demo
 explicitly approves its candidate, changes a registry-selected prompt and rolls it
 back. The second demonstrates a failed gate. Neither is a claimed live-model result.
 
-For a consumer before publication, run `npm pack` in this checkout and install the
-generated tarball. After the separate release action, install
-`npm install feloop@0.2.0-alpha.1`. Do not assume that version already exists on npm.
+The starter is source-only; the npm package contains the SDK and migrations.
+Use `feloop@alpha` to follow the alpha channel, or pin the version above.
 
 ## Connect your PostgreSQL database
 
@@ -58,9 +63,10 @@ episodes with verified labels before choosing analysis thresholds.
 ## Complete live starter
 
 The [classification starter](/get-started/classification-starter) is the complete command runbook (also included in the repository).
-Set `DATABASE_URL`, `FELOOP_NAMESPACE`, `OPENAI_API_KEY`, `OPENAI_MODEL` privately.
+Set `DATABASE_URL`, `FELOOP_NAMESPACE`, `OPENAI_API_KEY`, `OPENAI_MODEL` privately,
+or use the documented Azure endpoint/deployment and key or Entra-token configuration.
 No default model is guessed. Live model commands require `--live`, send selected
-text to OpenAI, may incur charges and default to 80 requests/2,048 output tokens
+text to your selected OpenAI or Azure OpenAI provider, may incur charges and default to 80 requests/2,048 output tokens
 per request per command. `store:false` is not a zero-retention guarantee.
 
 Run `init --live`, `seed --live`, `recommend --live`, `evaluate --candidate ID --live`,

@@ -4,8 +4,8 @@ title: Feloop reliable alpha
 
 Feloop is an MIT-licensed TypeScript SDK that coordinates feedback-driven AI
 improvements. It is not an LLM, trainer, hosted observability service or rollout daemon.
-The release target is `0.2.0-alpha.1`, supporting Node.js 22 and 24 as an ESM library
-with **zero core runtime dependencies**. Publication is a separate release action.
+The published alpha is `0.2.0-alpha.1`, supporting Node.js 22 and 24 as an ESM library
+with **zero core runtime dependencies**. Install with `npm install feloop@0.2.0-alpha.1`.
 
 The useful loop is:
 
@@ -27,7 +27,7 @@ callbacks. Feloop stores evidence, bounds orchestration and protects lifecycle t
   explicit predecessor-based rollback through your deployment adapter.
 - A v2 database contract, optional PostgreSQL 16/17 reference adapter and conformance suite.
 - Review-first controller with limited experimental prompt/routing auto-apply.
-- A complete standalone PostgreSQL/OpenAI support-intent starter, plus offline fixtures.
+- A complete standalone PostgreSQL/OpenAI or Azure OpenAI support-intent starter, plus offline fixtures.
 
 ## What does not ship
 

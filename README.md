@@ -5,16 +5,16 @@ Capture executions and feedback, find recurring scored segments, evaluate an
 immutable candidate, approve it, and coordinate deployment or rollback through
 your infrastructure. Feloop is a library, not a hosted service or autonomous trainer.
 
-Release target: **0.2.0-alpha.1**, MIT, ESM, Node.js **22 and 24**. No core runtime
+Published alpha: **0.2.0-alpha.1**, MIT, ESM, Node.js **22 and 24**. No core runtime
 dependencies, telemetry, database driver, scheduler, model client, or background daemon.
-This checkout prepares the release; it does not imply the npm package is published.
+Install from npm with `npm install feloop@0.2.0-alpha.1` (or `feloop@alpha`).
 
 [Canonical documentation](https://feloop.docs.buildwithfern.com/get-started/overview)
 · [Starter](examples/prompt-improvement/README.md)
 · [Capabilities](SUPPORTED.md) · [Migration](docs/migration.md)
 · [Release gates](docs/release-checklist.md) · [Security](SECURITY.md)
 
-## Try the source before publication
+## Try the source and starter
 
 ```sh
 git clone https://github.com/SanaanKhalid/feloop.git
@@ -25,13 +25,11 @@ npm run starter -- demo
 npm run starter -- demo --reject
 ```
 
-Repository access is required until the owner explicitly makes it public. Both demos
-are **simulated fixtures, not live LLM results**. The accepting demo explicitly
+The repository is public. Both demos are **simulated fixtures, not live LLM results**. The accepting demo explicitly
 approves its fixture candidate; ordinary recommendations never do that automatically.
 
-After the separate npm release action, install the pinned alpha with
-`npm install feloop@0.2.0-alpha.1`. Until then, run `npm pack` in this checkout
-and install its actual `.tgz` file in your consumer project.
+The npm package contains the SDK and migrations. Clone the repository above to run
+the standalone starter; its provider-specific code is outside the core package.
 
 ## Capture a local example
 

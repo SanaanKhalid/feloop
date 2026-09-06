@@ -15,7 +15,7 @@ title: Supported capabilities
 | Deployment | Pending attempts, active pointer, receipts, reconciliation and rollback lineage | Real idempotent apply/inspect/rollback; fences; no out-of-band target writes |
 | Controller | Recommend default; 3 proposals/3 candidates, 10 min run, 2 min callback defaults | Scheduling, cost policy, trusted callbacks, process isolation |
 | Auto-apply | Explicit experimental low-risk prompt/routing only with metric gates | Not a guarantee of safe/universal autonomous improvement |
-| Starter | OpenAI Responses via fetch, PostgreSQL prompt registry, exact-match evaluation, CLI | User credentials/model; synthetic example dataset must be replaced for customer claims |
+| Starter | OpenAI/Azure OpenAI Responses via fetch, PostgreSQL prompt registry, exact-match evaluation, CLI | User credentials/model or Azure deployment; synthetic example dataset must be replaced for customer claims |
 | Other target kinds | Represent, recommend, evaluate and manually deploy through adapters | No built-in fine-tuning/training, code deployment, agent spawning or capacity scaling |
 | Telemetry / operations | Durable lifecycle events and structured controller reasons; no Feloop telemetry | Existing logger, alerting, jobs, retention and incident response |
 | Hosted product | None | No dashboard, accounts, billing, SLA or managed service |
