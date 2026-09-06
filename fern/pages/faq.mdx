@@ -1,72 +1,58 @@
 ---
 title: Common pitfalls and FAQ
-description: Avoid weak feedback, evaluation leakage, unsafe automation, and deployment-state mistakes.
 ---
 
-## Common pitfalls
+### Does Feloop improve any model automatically?
 
-### Optimizing thumbs-up rate alone
+No. It coordinates evidence and application-written proposals/evaluators/adapters.
+The included starter demonstrates one classification prompt workflow. Other tasks
+need trustworthy feedback and task-specific evaluation. Fine-tuning is not supplied.
 
-Pair preference with correctness, durable resolution, safety, cost, and long-term outcomes.
+### Is it still lightweight?
 
-### Treating every correction as truth
+Yes: the Node SDK core has no runtime dependencies, service, daemon or required
+provider. PostgreSQL and the OpenAI starter are optional imports/source examples.
+Reliability metadata and tests do not turn it into a hosted platform.
 
-Verify source authority and look for consensus or downstream success.
+### Can I feed operator messages directly into training?
 
-### Ignoring artifact versions
+You can capture them if authorized, but rephrasing is not a verified correction.
+Define consent, redaction, source authority and label resolution first. Several
+turns with one outcome are one episode unit, not independent training examples.
 
-Without exact model, prompt, router, knowledge, policy, tool schema, and application versions, attribution becomes guesswork.
+### Why did my findings disappear or a candidate fail?
 
-### Creating tiny segments
+Check window attribution, signal name/kind/score, positive weights, episode counts,
+recurrence and entity thresholds. A positive effect threshold cannot pass without
+an effect. Query overflow throws instead of silently truncating. A failed held-out
+evaluation is expected and must not be rewritten as a success.
 
-Require support, recurrence, entity breadth, and meaningful effect before action.
+### Does recommend mode deploy? Is experiment sandboxed?
 
-### Leaking discovery data into evaluation
+Recommend stores proposals only. Experiment evaluates without automatic deployment,
+but callbacks are ordinary code in your process. Auto-apply needs explicit experimental
+opt-in and is limited to low-risk prompt/routing changes passing independent gates.
 
-Use separate counterexamples, evaluation data, and frozen holdouts.
+### A deploy timed out. Should I retry?
 
-### Recording deployment before it succeeds
+Reconcile the saved attempt first. Apply may already have happened. The target remains
+reserved until authoritative inspect reports applied with a receipt or fenced
+not_applied. Unknown must remain pending. Never delete the reservation to force a retry.
 
-Call the external adapter first. Record deployed state only after success.
+### Do namespaces make this a secure multi-tenant server?
 
-### Starting in apply mode
+No. They scope integrity operations. Your service still authenticates and authorizes
+access, verifies labels and protects the database. Direct database access bypasses
+application-level protections.
 
-Build evidence quality and evaluator trust in observe, recommend, and experiment first.
+### Can I reuse old JSON deployment state?
 
-### Letting the optimizer change its guardrails
+Import it explicitly into historical records using a new destination. Preserve the
+original file. Missing predecessors cannot honestly become an active rollback chain.
+Re-evaluate and approve fresh candidates against an explicit serving baseline.
 
-Keep authorization, evaluators, permissions, risk policy, and deployment controls in an independent trust boundary.
+### Is the alpha already published or the website public?
 
-## Frequently asked questions
-
-### Is this an observability platform?
-
-No. It stores the minimum durable contracts needed for improvement and should export to the observability stack you already use.
-
-### Does it automatically fine-tune a model?
-
-No provider is built into the core. A recipe can create a dataset or model candidate, an evaluator can run training and validation, and a deployer can promote the result.
-
-### Can it improve itself automatically?
-
-Yes, within explicit boundaries. Apply mode can turn evidence into a proposal, evaluate it, enforce metric and risk policy, invoke a deployer, and record the result. High-impact or weakly evaluated changes should remain human-approved.
-
-### Does it work for conventional machine learning?
-
-Yes. A prediction is an execution, a later label or sensor result is a signal, and a feature, threshold, dataset, or model version is a candidate.
-
-### Is it lightweight?
-
-Yes. The core has no required runtime model provider, service, queue, vector database, or hosted control plane. Production teams add only the adapters they need.
-
-### How does it fit an operations chatbot?
-
-Record each assistant turn with task, route, model, prompt, policy, and application versions. Attach operator corrections and ticket outcomes. Analyze recurring task and route segments. Propose prompt, retrieval, routing, rule, or model changes, then replay them before a controlled rollout.
-
-### What is the first safe production milestone?
-
-Instrument one high-value workflow in observe mode, capture verified outcomes, and prove attribution quality. Add recommendation and replay only after the data is trustworthy.
-
-### Why are namespaces mandatory?
-
-They form the client or environment boundary across executions, signals, findings, and candidates. Production storage and deployers must enforce the same boundary.
+Release preparation does not publish npm, change repository visibility or deploy
+the website. Follow the release checklist, verify npm ownership and enable private
+security reporting before public launch. Use the alpha tag, never latest by accident.

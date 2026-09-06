@@ -1,83 +1,69 @@
 ---
-title: Evaluation and deployment
-description: Prove improvements before promotion and keep every production change reversible.
+title: Evaluation, deployment and recovery
 ---
 
-Evaluation is the proof boundary between an attractive proposal and an acceptable production change.
+An evaluator receives a snapshot of an immutable candidate and an AbortSignal. It
+returns `{passed: boolean, metrics?: Record<string, number>, notes?: string}`.
+Metrics must be finite. Supply `evaluator`, `version` and `datasetHash` in its context.
+Keep held-out examples disjoint from proposal/correction examples by episode, entity
+and time. Freeze the split before generating proposals. Repeated tuning against one
+holdout leaks information; rotate a final audit set and version the evaluator.
 
-## Evaluation layers
+The classification starter uses exact-match labels, per-class non-regression and fixed
+guardrail cases. Labels, system instructions, evaluator code and acceptance thresholds
+are outside the generated prompt fragment. The proposing model never grades itself.
+Passing a tiny holdout is not statistical proof of safety or production improvement.
 
-1. **Schema and static checks.** Validate prompt templates, output schemas, route graphs, tool signatures, token limits, and required policy clauses.
-2. **Historical replay.** Test failures, verified corrections, counterexamples, and untouched holdout cases. Mock mutating tools.
-3. **Safety and policy.** Test injection, authorization, isolation, prohibited actions, escalation, refusal quality, and sensitive data.
-4. **Shadow or canary traffic.** Measure live distributions without immediately changing all user-visible behavior.
-5. **Outcome verification.** Measure the actual task result, cost, latency, and operational burden.
+## DeploymentAdapter contract
 
-## Evaluator example
+Implement three async methods: `apply(request)`, `rollback(request)` and
+`inspect(request)`. Requests contain the stable attempt, candidate, optional restore
+candidate, `idempotencyKey` equal to attempt ID, and cancellation signal. Namespace is
+present in the records; include it in your external idempotency/authorization scope.
 
-~~~ts
-const evaluator: CandidateEvaluator = async (candidate) => {
-  const suite = await loadFrozenReplaySet(candidate.evidence);
-  const results = await runCandidateInSandbox(candidate, suite);
+Apply/rollback return a durable receipt with `attemptId`, `artifactVersion`, and
+`previousArtifactVersion` (nullable for an empty baseline). Apply must return a
+non-null version. Rollback must return exactly the recorded restore version.
+Optional JSON metadata can hold external operation IDs; do not put secrets there.
 
-  const metrics = {
-    answerAccuracy: results.accuracy,
-    policyCompliance: results.policyCompliance,
-    regressionRate: results.regressionRate,
-    p95LatencyMs: results.p95LatencyMs,
-    costPerEpisode: results.costPerEpisode,
-  };
+Compare the current external version to `attempt.expectedArtifactVersion` before
+changing it. Persist the receipt and change together when the external system allows.
+Retrying the same idempotency key must return the same result, not apply again. Keep
+enough history to restore the exact predecessor. Do not use “latest superseded” as a
+rollback destination. Avoid out-of-band writes to a managed target.
 
-  return {
-    passed:
-      metrics.answerAccuracy >= 0.95 &&
-      metrics.policyCompliance === 1 &&
-      metrics.regressionRate <= 0.01,
-    metrics,
-    notes: "Frozen holdout plus adversarial safety suite",
-  };
-};
-~~~
+## Pending outcomes are intentionally blocking
 
-## Prevent overfitting
+| Inspection result | Required meaning / SDK action |
+| --- | --- |
+| applied + valid receipt | Change definitely occurred; finalize lifecycle and active pointer atomically |
+| not_applied | Change definitely did not occur **and cannot occur later**; clear reservation |
+| unknown | Outcome is ambiguous; keep target blocked |
 
-- Separate discovery, evaluation, and final holdout data.
-- Split by entity and time where leakage is possible.
-- Include counterexamples where existing behavior was correct.
-- Slice metrics by tenant, task, language, model, route, and risk.
-- Freeze replay-set and evaluator versions in candidate metadata.
-- Keep hard safety constraints separate from a blended reward.
+An empty lookup is not necessarily proof of non-application: an old request may still
+be running. Before returning `not_applied`, fence the attempt so late operations with
+that key cannot change the target. If your provider cannot prove/fence it, return
+unknown and escalate through your application's operations process.
 
-## Deployment adapter
+The SDK saves an attempt before dispatch, calls externally without a database
+transaction, then saves the receipt/states/event/pointer atomically. If any boundary
+fails, the error includes `code: 'deployment_pending'` and `attemptId`. A valid
+receipt may already exist externally. Call `reconcileAttempt(id, adapter)`; it only
+inspects, never blindly reapplies. Missing/malformed receipts remain pending.
 
-~~~ts
-async function deployer(candidate: AdaptationCandidate) {
-  const version = validateVersionedChange(candidate.proposedChange);
+## Rollback and operational checklist
 
-  await configurationRegistry.createImmutableVersion({
-    namespace: candidate.namespace,
-    target: candidate.target,
-    candidateId: candidate.id,
-    value: version,
-  });
+Only the active deployed candidate can be rolled back. Its recorded predecessor
+must still be eligible; rolled-back versions stay rolled_back. A → B → C followed
+by rollback C then B restores B then A, never C again. The initial external baseline
+may have no Feloop candidate; its version is retained in the receipt.
 
-  await featureFlags.setPointer({
-    namespace: candidate.namespace,
-    key: candidate.target.key,
-    version: version.id,
-    rolloutPercent: 5,
-  });
-}
-~~~
+For an incident: disable new deployments, list pending attempts/events, inspect
+external receipts, reconcile, verify the serving version, and explicitly roll back
+if needed. Resolve uncertainty before allowing another target change. Do not delete
+attempts, edit active pointers manually or restore an old database snapshot while
+external versions continue changing. Adapters must reconcile after a disaster restore.
 
-## Recommended rollout
-
-1. Create an immutable artifact version.
-2. Verify namespace, target key, version, and candidate attribution.
-3. Begin with shadowing or a small canary.
-4. Record deployed state after the adapter succeeds.
-5. Emit all new executions with the deployed artifact version.
-6. Monitor objective, safety, cost, and latency guardrails.
-7. Revert the external pointer and call <code>rollbackCandidate</code> when a stop condition fires.
-
-<code>rollbackCandidate</code> restores lifecycle state. The application adapter must still revert the real external pointer.
+Manual and controller-driven deployment use the same core implementation. Feloop
+coordinates retry-safe operations; it does **not** claim universal exactly-once
+execution across databases and arbitrary external systems.

@@ -1,34 +1,36 @@
 import type {
-  AdaptationCandidate,
-  AiExecution,
-  CandidateListOptions,
-  FeedbackSignal,
+  Collection,
+  Collections,
+  Page,
+  PageOptions,
 } from "./contracts.js";
-
-export interface ExecutionListOptions {
-  namespace?: string;
-  since?: string;
-  until?: string;
+/** Transactions are namespace-bound, serializable, atomic, and unusable after completion.
+ * Never call models or deployment adapters inside a transaction callback. */
+export interface StoreTransaction {
+  get<K extends Collection>(
+    collection: K,
+    id: string,
+  ): Promise<Collections[K] | undefined>;
+  list<K extends Collection>(
+    collection: K,
+    options?: PageOptions,
+  ): Promise<Page<Collections[K]>>;
+  insert<K extends Collection>(
+    collection: K,
+    record: Collections[K],
+  ): Promise<void>;
+  replace<K extends Collection>(
+    collection: K,
+    record: Collections[K],
+    expectedRevision: number,
+  ): Promise<void>;
 }
-
-export interface SignalListOptions {
-  namespace?: string;
-  since?: string;
-  until?: string;
-}
-
 export interface FeedbackStore {
-  saveExecution(execution: AiExecution): Promise<void>;
-  getExecution(id: string): Promise<AiExecution | undefined>;
-  listExecutions(options?: ExecutionListOptions): Promise<AiExecution[]>;
-
-  saveSignal(signal: FeedbackSignal): Promise<void>;
-  listSignals(options?: SignalListOptions): Promise<FeedbackSignal[]>;
-
-  saveCandidate(candidate: AdaptationCandidate): Promise<void>;
-  getCandidate(id: string): Promise<AdaptationCandidate | undefined>;
-  listCandidates(options?: CandidateListOptions): Promise<AdaptationCandidate[]>;
-
+  readonly version: 2;
+  transaction<T>(
+    namespace: string,
+    operation: (tx: StoreTransaction) => Promise<T>,
+  ): Promise<T>;
+  deleteNamespace(namespace: string): Promise<void>;
   close(): Promise<void>;
 }
-

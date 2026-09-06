@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import type {
   AdaptationCandidate,
   AnalyzeOptions,
@@ -6,348 +5,300 @@ import type {
   CandidateRisk,
   CandidateTarget,
   CandidateTargetKind,
+  DeploymentAdapter,
   EvaluationResult,
   Finding,
   JsonObject,
   JsonValue,
 } from "./contracts.js";
-import { FeedbackLoop } from "./feedback-loop.js";
-import { stableJson } from "./utils.js";
-
+import { targetKinds, risks } from "./contracts.js";
+import type { FeedbackLoop } from "./feedback-loop.js";
+import {
+  cancellable,
+  enumeration,
+  fail,
+  finite,
+  hash,
+  integer,
+  nonempty,
+} from "./utils.js";
+import { evaluation } from "./validation.js";
 export type AutonomyLevel = "observe" | "recommend" | "experiment" | "apply";
-
-export type MetricComparator = "gte" | "lte" | "gt" | "lt" | "eq";
-
 export interface EvaluationConstraint {
   metric: string;
-  comparator: MetricComparator;
+  comparator: "gte" | "lte" | "gt" | "lt" | "eq";
   value: number;
 }
-
 export interface ImprovementPolicy {
-  autonomy: AutonomyLevel;
+  autonomy?: AutonomyLevel;
   allowedTargets: CandidateTargetKind[];
-  /** Defaults to low. Only used when autonomy is apply. */
-  maxAutomaticRisk?: CandidateRisk;
-  /** Caps proposals processed in a single run. Defaults to 10. */
+  experimentalAutoApply?: boolean;
   maximumCandidatesPerRun?: number;
-  /** Every constraint must pass before a candidate can be approved. */
+  maximumProposalCalls?: number;
+  runTimeoutMs?: number;
+  callbackTimeoutMs?: number;
   constraints?: EvaluationConstraint[];
-  /** Reuse an open candidate and avoid recreating terminal candidates. Defaults to true. */
-  deduplicate?: boolean;
 }
-
 export interface ImprovementProposal {
   target: CandidateTarget;
   proposedChange: JsonValue;
   risk: CandidateRisk;
   metadata?: JsonObject;
 }
-
 export interface ImprovementRecipe {
   name: string;
-  matches: (finding: Finding) => boolean | Promise<boolean>;
-  propose: (
+  version: string;
+  matches(
     finding: Finding,
-  ) =>
+    context: { signal: AbortSignal },
+  ): boolean | Promise<boolean>;
+  propose(
+    finding: Finding,
+    context: { signal: AbortSignal },
+  ):
     | ImprovementProposal
     | ImprovementProposal[]
     | undefined
     | Promise<ImprovementProposal | ImprovementProposal[] | undefined>;
 }
-
-export type CandidateDeployer = (
-  candidate: AdaptationCandidate,
-) => void | Promise<void>;
-
 export interface SelfImprovementRunInput {
   analysis: AnalyzeOptions;
   policy: ImprovementPolicy;
   recipes: ImprovementRecipe[];
-  evaluatorName?: string;
   evaluator?: CandidateEvaluator;
-  deployer?: CandidateDeployer;
+  evaluation?: { name: string; version: string; datasetHash: string };
+  deploymentAdapter?: DeploymentAdapter;
+  signal?: AbortSignal;
 }
-
-export type ImprovementBlockReason =
-  | "candidate_budget_reached"
-  | "deployment_failed"
-  | "duplicate_terminal_candidate"
-  | "evaluation_failed"
-  | "risk_exceeds_policy"
-  | "target_not_allowed";
-
 export interface ImprovementBlock {
-  reason: ImprovementBlockReason;
-  recipe: string;
-  findingId: string;
+  reason: string;
   candidateId?: string;
   detail?: string;
 }
-
 export interface SelfImprovementRunResult {
   autonomy: AutonomyLevel;
   findings: Finding[];
   candidates: AdaptationCandidate[];
-  deployed: AdaptationCandidate[];
+  deployed: string[];
   blocked: ImprovementBlock[];
+  proposalCalls: number;
 }
-
-const riskRank: Record<CandidateRisk, number> = {
-  low: 0,
-  medium: 1,
-  high: 2,
-  critical: 3,
-};
-
-function metricPasses(actual: number | undefined, constraint: EvaluationConstraint): boolean {
-  if (actual === undefined || !Number.isFinite(actual)) {
-    return false;
+export function applyConstraints(
+  result: EvaluationResult,
+  constraints: EvaluationConstraint[],
+): EvaluationResult {
+  evaluation(result);
+  for (const c of constraints) {
+    const number = result.metrics?.[c.metric];
+    const passed =
+      number !== undefined &&
+      Number.isFinite(number) &&
+      {
+        gte: () => number >= c.value,
+        lte: () => number <= c.value,
+        gt: () => number > c.value,
+        lt: () => number < c.value,
+        eq: () => number === c.value,
+      }[c.comparator]();
+    if (!passed)
+      return {
+        ...result,
+        passed: false,
+        notes: `Constraint failed: ${c.metric} ${c.comparator} ${c.value}`,
+      };
   }
-
-  switch (constraint.comparator) {
-    case "gte":
-      return actual >= constraint.value;
-    case "lte":
-      return actual <= constraint.value;
-    case "gt":
-      return actual > constraint.value;
-    case "lt":
-      return actual < constraint.value;
-    case "eq":
-      return actual === constraint.value;
-  }
+  return result;
 }
-
-function improvementKey(
-  finding: Finding,
-  recipe: ImprovementRecipe,
-  proposal: ImprovementProposal,
-): string {
-  const digest = createHash("sha256")
-    .update(
-      stableJson({
-        findingId: finding.id,
-        recipe: recipe.name,
-        target: {
-          kind: proposal.target.kind,
-          key: proposal.target.key,
-        },
-        proposedChange: proposal.proposedChange,
-      }),
-    )
-    .digest("hex")
-    .slice(0, 24);
-  return `improvement_${digest}`;
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
-/**
- * Runs a governed improvement cycle over the FeedbackLoop primitives.
- *
- * Proposal generation, evaluation, and physical deployment remain adapters so
- * applications can use deterministic rules, an LLM, a trainer, a replay
- * harness, or an infrastructure controller without coupling those systems to
- * the framework.
- */
 export class SelfImprovementController {
   constructor(readonly loop: FeedbackLoop) {}
-
   async run(input: SelfImprovementRunInput): Promise<SelfImprovementRunResult> {
-    const findings = await this.loop.analyze(input.analysis);
+    const autonomy = input.policy.autonomy ?? "recommend";
+    enumeration(
+      autonomy,
+      ["observe", "recommend", "experiment", "apply"],
+      "autonomy",
+    );
+    if (!Array.isArray(input.policy.allowedTargets))
+      fail("invalid_input", "allowedTargets is required.");
+    for (const kind of input.policy.allowedTargets)
+      enumeration(kind, targetKinds, "allowed target");
+    for (const c of input.policy.constraints ?? []) {
+      nonempty(c.metric, "metric");
+      finite(c.value, "constraint value");
+      enumeration(c.comparator, ["gte", "lte", "gt", "lt", "eq"], "comparator");
+    }
+    const maxCandidates = input.policy.maximumCandidatesPerRun ?? 3,
+      maxCalls = input.policy.maximumProposalCalls ?? 3;
+    const callbackMs = input.policy.callbackTimeoutMs ?? 120000,
+      runMs = input.policy.runTimeoutMs ?? 600000;
+    integer(maxCandidates, "maximumCandidatesPerRun");
+    integer(maxCalls, "maximumProposalCalls");
+    integer(callbackMs, "callbackTimeoutMs");
+    integer(runMs, "runTimeoutMs");
+    for (const recipe of input.recipes) {
+      nonempty(recipe.name, "recipe name");
+      nonempty(recipe.version, "recipe version");
+    }
+    if (["experiment", "apply"].includes(autonomy)) {
+      if (!input.evaluator || !input.evaluation)
+        fail(
+          "invalid_input",
+          "Versioned evaluator and datasetHash are required.",
+        );
+      nonempty(input.evaluation.name, "evaluator name");
+      nonempty(input.evaluation.version, "evaluator version");
+      nonempty(input.evaluation.datasetHash, "datasetHash");
+    }
+    if (
+      autonomy === "apply" &&
+      (input.policy.experimentalAutoApply !== true ||
+        !input.deploymentAdapter ||
+        !input.policy.constraints?.length)
+    )
+      fail(
+        "invalid_input",
+        "Auto-apply requires explicit experimental opt-in, constraints and a deployment adapter.",
+      );
+    const controller = new AbortController();
+    const abort = () => controller.abort(input.signal?.reason);
+    if (input.signal?.aborted) abort();
+    else input.signal?.addEventListener("abort", abort, { once: true });
+    const timer = setTimeout(
+      () => controller.abort(new Error("Run deadline exceeded.")),
+      runMs,
+    );
     const result: SelfImprovementRunResult = {
-      autonomy: input.policy.autonomy,
-      findings,
+      autonomy,
+      findings: [],
       candidates: [],
       deployed: [],
       blocked: [],
+      proposalCalls: 0,
     };
-
-    if (input.policy.autonomy === "observe") {
-      return result;
-    }
-    if (
-      (input.policy.autonomy === "experiment" || input.policy.autonomy === "apply") &&
-      !input.evaluator
-    ) {
-      throw new Error(`${input.policy.autonomy} autonomy requires an evaluator.`);
-    }
-    if (input.policy.autonomy === "apply" && !input.deployer) {
-      throw new Error("apply autonomy requires a deployer.");
-    }
-
-    const maximumCandidates = input.policy.maximumCandidatesPerRun ?? 10;
-    if (!Number.isInteger(maximumCandidates) || maximumCandidates < 1) {
-      throw new Error("maximumCandidatesPerRun must be a positive integer.");
-    }
-
-    const evaluatorName = input.evaluatorName?.trim() || "self-improvement";
-    const deduplicate = input.policy.deduplicate !== false;
-    const processedKeys = new Set<string>();
-    let processedCount = 0;
-
-    for (const finding of findings) {
-      for (const recipe of input.recipes) {
-        if (!(await recipe.matches(finding))) {
-          continue;
-        }
-
-        const output = await recipe.propose(finding);
-        const proposals = output === undefined ? [] : Array.isArray(output) ? output : [output];
-        for (const proposal of proposals) {
-          if (processedCount >= maximumCandidates) {
-            result.blocked.push({
-              reason: "candidate_budget_reached",
-              recipe: recipe.name,
-              findingId: finding.id,
+    try {
+      controller.signal.throwIfAborted();
+      result.findings = await this.loop.analyze(input.analysis);
+      controller.signal.throwIfAborted();
+      if (autonomy === "observe") return result;
+      outer: for (const finding of result.findings)
+        for (const recipe of input.recipes) {
+          if (
+            result.proposalCalls >= maxCalls ||
+            result.candidates.length >= maxCandidates
+          ) {
+            result.blocked.push({ reason: "run_budget_reached" });
+            break outer;
+          }
+          const matches = await cancellable(
+            (signal) => recipe.matches(finding, { signal }),
+            controller.signal,
+            callbackMs,
+          );
+          if (typeof matches !== "boolean")
+            fail("invalid_input", "Recipe matches must return boolean.");
+          if (!matches) continue;
+          result.proposalCalls++;
+          const output = await cancellable(
+            (signal) => recipe.propose(finding, { signal }),
+            controller.signal,
+            callbackMs,
+          );
+          for (const proposal of output === undefined
+            ? []
+            : Array.isArray(output)
+              ? output
+              : [output]) {
+            controller.signal.throwIfAborted();
+            if (result.candidates.length >= maxCandidates) break outer;
+            enumeration(proposal.risk, risks, "proposal risk");
+            enumeration(proposal.target?.kind, targetKinds, "proposal target");
+            if (!input.policy.allowedTargets.includes(proposal.target.kind)) {
+              result.blocked.push({ reason: "target_not_allowed" });
+              continue;
+            }
+            const candidateId = `candidate_${hash({ namespace: this.loop.namespace, evidence: finding.evidence.fingerprint, recipe: [recipe.name, recipe.version], proposal, evaluation: input.evaluation ?? null })}`;
+            let candidate = await this.loop.createCandidate({
+              id: candidateId,
+              ...proposal,
+              evidence: finding.evidence as unknown as JsonValue,
             });
-            continue;
-          }
-          processedCount += 1;
-
-          if (!input.policy.allowedTargets.includes(proposal.target.kind)) {
-            result.blocked.push({
-              reason: "target_not_allowed",
-              recipe: recipe.name,
-              findingId: finding.id,
-              detail: proposal.target.kind,
-            });
-            continue;
-          }
-
-          const key = improvementKey(finding, recipe, proposal);
-          if (processedKeys.has(key)) {
-            continue;
-          }
-          processedKeys.add(key);
-
-          let candidate: AdaptationCandidate | undefined;
-          if (deduplicate) {
-            const matches = (await this.loop.listCandidates({
-              namespace: finding.namespace,
-              targetKey: proposal.target.key,
-            }))
-              .filter(
-                (item) =>
-                  item.target.kind === proposal.target.kind &&
-                  item.metadata.improvementKey === key,
-              )
-              .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
-            const existing = matches[0];
-            if (existing && ["deployed", "superseded", "rejected"].includes(existing.status)) {
+            result.candidates.push(candidate);
+            if (autonomy === "recommend") continue;
+            if (!["proposed", "evaluated"].includes(candidate.status)) {
               result.blocked.push({
-                reason: "duplicate_terminal_candidate",
-                recipe: recipe.name,
-                findingId: finding.id,
-                candidateId: existing.id,
-                detail: existing.status,
+                reason: "candidate_requires_explicit_action",
+                candidateId,
               });
               continue;
             }
-            candidate = existing;
+            try {
+              candidate = await this.loop.evaluateCandidate(
+                candidate.id,
+                {
+                  evaluator: input.evaluation!.name,
+                  version: input.evaluation!.version,
+                  datasetHash: input.evaluation!.datasetHash,
+                  signal: controller.signal,
+                },
+                (item, context) =>
+                  cancellable(
+                    async (signal) =>
+                      applyConstraints(
+                        await input.evaluator!(item, { signal }),
+                        input.policy.constraints ?? [],
+                      ),
+                    context.signal,
+                    callbackMs,
+                  ),
+              );
+              result.candidates[result.candidates.length - 1] = candidate;
+              if (!candidate.evaluations.at(-1)?.passed) {
+                result.blocked.push({
+                  reason: "evaluation_failed",
+                  candidateId,
+                });
+                continue;
+              }
+              if (autonomy !== "apply") continue;
+              if (
+                candidate.risk !== "low" ||
+                !["prompt", "routing"].includes(candidate.target.kind)
+              ) {
+                result.blocked.push({
+                  reason: "automatic_scope_exceeded",
+                  candidateId,
+                });
+                continue;
+              }
+              controller.signal.throwIfAborted();
+              candidate = await this.loop.approveCandidate(candidate.id, {
+                actor: "feloop/experimental-auto-apply",
+                evaluationId: candidate.evaluations.at(-1)!.id,
+              });
+              const attempt = await this.loop.deployCandidate(candidate.id, {
+                adapter: input.deploymentAdapter!,
+                signal: controller.signal,
+              });
+              if (attempt.status === "succeeded")
+                result.deployed.push(candidate.id);
+            } catch (error) {
+              result.blocked.push({
+                reason: "operation_failed",
+                candidateId,
+                detail: error instanceof Error ? error.message : String(error),
+              });
+            }
           }
-
-          candidate ??= await this.loop.createCandidateFromFinding({
-            finding,
-            target: proposal.target,
-            proposedChange: proposal.proposedChange,
-            risk: proposal.risk,
-            metadata: {
-              ...(proposal.metadata ?? {}),
-              improvementKey: key,
-              improvementRecipe: recipe.name,
-            },
-          });
-
-          if (input.policy.autonomy === "recommend") {
-            result.candidates.push(candidate);
-            continue;
-          }
-
-          const evaluator = input.evaluator!;
-          candidate = await this.loop.evaluateCandidate(candidate.id, evaluatorName, async (item) => {
-            const evaluation = await evaluator(item);
-            return this.applyConstraints(evaluation, input.policy.constraints ?? []);
-          });
-          const latestEvaluation = candidate.evaluations.at(-1);
-          if (!latestEvaluation?.passed) {
-            result.candidates.push(candidate);
-            result.blocked.push({
-              reason: "evaluation_failed",
-              recipe: recipe.name,
-              findingId: finding.id,
-              candidateId: candidate.id,
-              ...(latestEvaluation?.notes ? { detail: latestEvaluation.notes } : {}),
-            });
-            continue;
-          }
-
-          if (input.policy.autonomy === "experiment") {
-            result.candidates.push(candidate);
-            continue;
-          }
-
-          const maximumRisk = input.policy.maxAutomaticRisk ?? "low";
-          if (riskRank[candidate.risk] > riskRank[maximumRisk]) {
-            result.candidates.push(candidate);
-            result.blocked.push({
-              reason: "risk_exceeds_policy",
-              recipe: recipe.name,
-              findingId: finding.id,
-              candidateId: candidate.id,
-              detail: `${candidate.risk} > ${maximumRisk}`,
-            });
-            continue;
-          }
-
-          candidate = await this.loop.approveCandidate(candidate.id);
-          try {
-            await input.deployer!(candidate);
-          } catch (error) {
-            result.candidates.push(candidate);
-            result.blocked.push({
-              reason: "deployment_failed",
-              recipe: recipe.name,
-              findingId: finding.id,
-              candidateId: candidate.id,
-              detail: errorMessage(error),
-            });
-            continue;
-          }
-
-          candidate = await this.loop.deployCandidate(candidate.id);
-          result.candidates.push(candidate);
-          result.deployed.push(candidate);
         }
-      }
+    } catch (error) {
+      result.blocked.push({
+        reason: controller.signal.aborted ? "run_cancelled" : "run_failed",
+        detail: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      clearTimeout(timer);
+      input.signal?.removeEventListener("abort", abort);
     }
-
     return result;
-  }
-
-  private applyConstraints(
-    evaluation: EvaluationResult,
-    constraints: EvaluationConstraint[],
-  ): EvaluationResult {
-    const metrics = evaluation.metrics ?? {};
-    const failures = constraints.filter(
-      (constraint) => !metricPasses(metrics[constraint.metric], constraint),
-    );
-    const notes = [
-      evaluation.notes,
-      ...failures.map(
-        (constraint) =>
-          `${constraint.metric} must be ${constraint.comparator} ${constraint.value}`,
-      ),
-    ].filter((note): note is string => Boolean(note));
-
-    return {
-      passed: evaluation.passed && failures.length === 0,
-      metrics,
-      ...(notes.length > 0 ? { notes: notes.join("; ") } : {}),
-    };
   }
 }

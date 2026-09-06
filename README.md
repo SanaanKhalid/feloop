@@ -1,280 +1,106 @@
 # Feloop
 
-A dependency-light, model-agnostic TypeScript framework for connecting production AI executions to later feedback and outcomes, detecting recurring patterns, and managing evaluated improvement candidates.
+A lightweight TypeScript SDK for **reviewed, evidence-driven AI improvements**.
+Capture executions and feedback, find recurring scored segments, evaluate an
+immutable candidate, approve it, and coordinate deployment or rollback through
+your infrastructure. Feloop is a library, not a hosted service or autonomous trainer.
 
-The core does not host models, fine-tune them, deploy infrastructure, or replace an observability platform. It provides the small coordination layer between those systems.
+Release target: **0.2.0-alpha.1**, MIT, ESM, Node.js **22 and 24**. No core runtime
+dependencies, telemetry, database driver, scheduler, model client, or background daemon.
+This checkout prepares the release; it does not imply the npm package is published.
 
-## Status
+[Canonical documentation](https://feloop.docs.buildwithfern.com/get-started/overview)
+· [Starter](examples/prompt-improvement/README.md)
+· [Capabilities](SUPPORTED.md) · [Migration](docs/migration.md)
+· [Release gates](docs/release-checklist.md) · [Security](SECURITY.md)
 
-Version `0.1.0` implements:
+## Try the source before publication
 
-- hierarchical AI executions such as turns, inferences, retrievals, tools, and workflows;
-- execution-level and delayed episode-level feedback signals;
-- mandatory namespaces for client and environment isolation;
-- structured recurring-pattern detection with support, effect, recurrence, entity, confidence, and correction-consensus evidence;
-- prompt, routing, rule, retrieval, model, dataset, threshold, tool-schema, workflow, agent-topology, code, capacity, and custom candidates;
-- evaluator callbacks, approval, deployment, superseding, and rollback;
-- an optional governed self-improvement controller with observe, recommend, experiment, and apply modes;
-- in-memory and local single-process JSON stores;
-- a small analysis CLI; and
-- a runnable Opsentry example.
-
-## Design
-
-```text
-AI execution -> signal/outcome -> recurring finding -> candidate
-             -> evaluation -> approval -> deployment -> continued measurement
-```
-
-The framework distinguishes:
-
-- an **execution**, which is something an AI system predicted, generated, retrieved, routed, or did;
-- an **episode**, which joins multiple executions to a conversation, ticket, meal, incident, or task;
-- a **signal**, which is a rating, correction, reward, approval, tool result, or delayed outcome;
-- a **finding**, which is repeated evidence within a segment; and
-- a **candidate**, which is a versioned proposed change evaluated before deployment.
-
-See [Architecture](docs/architecture.md) and [Opsentry integration](docs/opsentry-integration.md).
-
-## Develop
-
-Requires Node.js 22 or newer.
-
-```bash
-npm install
-npm run typecheck
+```sh
+git clone https://github.com/SanaanKhalid/feloop.git
+cd feloop
+npm ci
 npm test
+npm run starter -- demo
+npm run starter -- demo --reject
 ```
 
-Run the end-to-end Opsentry example:
+Repository access is required until the owner explicitly makes it public. Both demos
+are **simulated fixtures, not live LLM results**. The accepting demo explicitly
+approves its fixture candidate; ordinary recommendations never do that automatically.
 
-```bash
-npm run example:opsentry
-```
+After the separate npm release action, install the pinned alpha with
+`npm install feloop@0.2.0-alpha.1`. Until then, run `npm pack` in this checkout
+and install its actual `.tgz` file in your consumer project.
 
-Run the delegated-agent bottleneck and self-improvement example:
+## Capture a local example
 
-```bash
-npm run example:self-improving
-```
+```typescript
+import { FeedbackLoop, InMemoryStore } from 'feloop';
 
-## Quick start
-
-Feloop is currently a private, unpublished package. The package name is `feloop`; the core TypeScript class remains `FeedbackLoop`. The `feloop` CLI also accepts the legacy `ai-feedback-loop` executable name. The local checkout is still named `ai-feedback-loop`.
-
-```ts
-import { FeedbackLoop, JsonFileStore } from "feloop";
-
-const feedback = new FeedbackLoop(
-  new JsonFileStore(".feedback-loop/local.json"),
-);
-
-const turn = await feedback.recordExecution({
-  namespace: "acme/prod",
-  kind: "turn",
-  episodeId: "ticket-RITM0012345",
-  entityId: "operator-hash",
-  input: {
-    message: "Remove MFA for this user",
-  },
-  output: {
-    intent: "disable_per_user_mfa",
-  },
-  artifacts: {
-    model: "gpt-5-chat",
-    prompt: "lex-core@18",
-    policy: "approval-policy@8",
-    application: "opsentry@0.1.0",
-  },
-  metadata: {
-    task: "identity.mfa",
-    operatorIdHash: "operator-hash",
-  },
+const loop = new FeedbackLoop({
+  store: new InMemoryStore(), // Development only; use a conforming DB adapter in production.
+  namespace: 'support/development',
 });
-
-await feedback.recordSignal({
-  namespace: "acme/prod",
-  executionId: turn.id,
-  kind: "correction",
-  name: "operator_correct",
-  value: false,
-  correction: {
-    intent: "delete_authentication_methods",
-    firstTool: "list_user_authentication_methods",
-  },
-  source: "operator",
+const execution = await loop.recordExecution({
+  id: 'request-123', kind: 'prediction', episodeId: 'ticket-123',
+  input: { text: 'Please explain this charge.' }, output: { label: 'other' },
+  artifacts: { model: 'your-model-version', prompt: 'intent-v1' },
+  metadata: { task: 'support-intent' },
 });
-```
-
-## Find repeated patterns
-
-Dimensions are JSON paths on the stored execution. The analyzer tests individual dimensions and combinations up to `maximumDimensionDepth`.
-
-```ts
-const findings = await feedback.analyze({
-  namespace: "acme/prod",
-  dimensions: [
-    "metadata.task",
-    "artifacts.prompt",
-    "metadata.route",
-  ],
-  maximumDimensionDepth: 2,
-  executionKinds: ["turn"],
-  signalNames: ["operator_correct", "ticket_resolved"],
-  minimumSupport: 20,
-  minimumScoredCount: 10,
-  minimumEffectSize: 0.1,
-  minimumRecurrence: 3,
-  minimumDistinctEntities: 2,
-  entityPath: "metadata.operatorIdHash",
-  timeBucket: "week",
+await loop.recordSignal({
+  id: 'review-123', executionId: execution.id, kind: 'correction',
+  name: 'verified_correct', value: false, correction: { label: 'billing' },
+  source: 'authorized-reviewer', confidence: 1,
 });
+await loop.close();
 ```
 
-By default, booleans, numbers, and common positive/negative strings are converted to scores. Supply `score(signal)` for application-specific objectives, multi-objective weighting, or metrics whose lower values are better.
+Creation is insert-only. Same caller ID and identical normalized/sanitized input
+returns the original record; conflicting content fails. Updates require a revision.
+A namespace is an integrity scope, **not authentication**. Your application chooses
+authorized namespaces and verifies correction sources.
 
-## Turn evidence into a candidate
+## Bring your own PostgreSQL
 
-```ts
-const candidate = await feedback.createCandidateFromFinding({
-  finding: findings[0]!,
-  target: {
-    kind: "prompt",
-    key: "lex-core",
-  },
-  proposedChange: {
-    from: "lex-core@18",
-    to: "lex-core@19",
-    instruction: "Disambiguate disabling MFA from deleting authentication methods.",
-  },
-});
+Install `pg` in your application. `feloop/postgres` accepts your pool without importing
+the driver. Construction does not create tables. Review and apply the versioned SQL
+in `migrations/001-feedback-store.sql`, or explicitly call `migratePostgres(pool)`
+with a migration identity. Production request credentials should not need DDL rights.
 
-await feedback.evaluateCandidate(candidate.id, "historical-replay", async () => ({
-  passed: true,
-  metrics: {
-    intentAccuracy: 0.94,
-    approvalCompliance: 1,
-  },
-}));
+```typescript
+import { Pool } from 'pg';
+import { FeedbackLoop } from 'feloop';
+import { PostgresStore, migratePostgres } from 'feloop/postgres';
 
-await feedback.approveCandidate(candidate.id);
-await feedback.deployCandidate(candidate.id);
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) throw new Error('Set DATABASE_URL explicitly.');
+const pool = new Pool({ connectionString });
+await migratePostgres(pool); // Explicit setup, not a constructor side effect.
+const loop = new FeedbackLoop({ store: new PostgresStore(pool), namespace: 'support/dev' });
+await loop.recordExecution({ kind: 'prediction', input: { text: 'Synthetic setup check' } });
+await loop.close(); // Does not close your pool.
+await pool.end();
 ```
 
-Deployment only changes candidate state. An application adapter remains responsible for applying the prompt, route, model, or configuration pointer. This keeps side effects explicit and application-controlled.
+Use TLS and your database's credential-management policy. Neither migrations nor
+SDK namespaces replace database authorization, encryption, backups, or restore drills.
 
-## Governed self-improvement
+## Reliability boundary
 
-`SelfImprovementController` closes the loop without giving the framework unrestricted access to production. It analyzes evidence, invokes application-supplied improvement recipes, evaluates proposals, and optionally calls a deployment adapter.
+Evaluation and approval reference exact content, evidence and evaluator versions.
+Deployment reserves the target and saves an attempt **before** calling your adapter.
+The external call runs outside the database transaction. A valid receipt, candidate
+states, lifecycle event and active pointer are finalized atomically afterward.
+An uncertain result remains pending until inspection resolves it. Do not retry apply
+blindly. An adapter must implement idempotent apply, durable inspect, fenced
+`not_applied`, and real rollback. There is no universal exactly-once guarantee.
 
-```ts
-import { SelfImprovementController } from "feloop";
+Default automation only recommends. Experimental auto-apply needs explicit opt-in,
+allowed targets, passing metric gates and low-risk prompt/routing changes. Callbacks
+run in your process; cancellation is cooperative, **not a sandbox**.
 
-const controller = new SelfImprovementController(feedback);
-
-await controller.run({
-  analysis: {
-    namespace: "acme/prod",
-    dimensions: ["metadata.resource"],
-    executionKinds: ["tool"],
-    signalNames: ["within_latency_budget"],
-  },
-  policy: {
-    autonomy: "apply",
-    allowedTargets: ["routing"],
-    maxAutomaticRisk: "low",
-    constraints: [
-      { metric: "answerAccuracy", comparator: "gte", value: 0.95 },
-      { metric: "policyCompliance", comparator: "eq", value: 1 },
-    ],
-  },
-  recipes: [{
-    name: "deduplicate-read-only-lookups",
-    matches: (finding) =>
-      finding.dimensions["metadata.resource"] === "servicenow_lookup",
-    propose: () => ({
-      target: { kind: "routing", key: "lex-ticket-reads" },
-      proposedChange: { version: "ticket-reads@2", cacheWithinEpisode: true },
-      risk: "low",
-    }),
-  }],
-  evaluator: replayCandidateWithMockedTools,
-  deployer: updateClientScopedVersionPointer,
-});
-```
-
-Autonomy is intentionally graduated:
-
-- `observe`: find trends only;
-- `recommend`: create reviewable candidates;
-- `experiment`: run candidates through the evaluator but do not deploy; and
-- `apply`: deploy only candidates within the configured risk ceiling and metric constraints.
-
-Agent, workflow, code, model, dataset, capacity, and topology changes can be represented, but risky changes should remain in recommend or experiment mode. Recipes can call an LLM, trainer, or optimizer; they are adapters rather than runtime dependencies.
-
-## Hierarchical executions
-
-Record tool, retrieval, or additional model steps under a turn:
-
-```ts
-const tool = await feedback.recordExecution({
-  namespace: turn.namespace,
-  kind: "tool",
-  episodeId: turn.episodeId,
-  parentExecutionId: turn.id,
-  input: {
-    name: "list_user_authentication_methods",
-  },
-});
-
-await feedback.completeExecution(tool.id, {
-  output: {
-    status: "success",
-  },
-});
-```
-
-Signals may target a precise execution or an entire episode. When analysis is restricted to `executionKinds: ["turn"]`, a delayed episode outcome is attributed once to the turn instead of once per tool step.
-
-## CLI
-
-Analyze a local JSON store:
-
-```bash
-npm run build
-node dist/src/cli.js analyze \
-  --store .feedback-loop/local.json \
-  --namespace acme/prod \
-  --dimensions metadata.task,artifacts.prompt \
-  --signal-names operator_correct \
-  --min-support 20 \
-  --min-effect 0.1
-```
-
-List candidates:
-
-```bash
-node dist/src/cli.js candidates \
-  --store .feedback-loop/local.json \
-  --namespace acme/prod
-```
-
-## Storage
-
-`InMemoryStore` is intended for tests and examples. `JsonFileStore` is intended for local, single-process development and uses serialized temporary-file replacement.
-
-Production systems should implement the small `FeedbackStore` interface using their transactional database. The framework has no runtime dependencies and does not require applications to adopt a particular database.
-
-## Privacy and safety
-
-- Redact or tokenize sensitive payloads before calling the framework.
-- Use a namespace such as `client/environment` on every record.
-- Do not pool client data unless contracts, consent, and isolation policy explicitly allow it.
-- Treat implicit behavior as weaker evidence than corrections or verified outcomes.
-- Keep approval, authorization, tenant isolation, and tool allowlists outside learned prompts and models.
-- Replay candidates with mocked or read-only tools before deployment.
-- Do not train directly on negative examples; pair them with a verified correction first.
-
-## Non-goals
-
-The core intentionally does not provide model hosting, prompt generation, fine-tuning jobs, vector storage, annotation UI, queues, a web dashboard, or automatic production mutation. Those belong in optional adapters.
+The complete PostgreSQL/OpenAI starter includes real prompt selection, exact-match
+holdout evaluation, review, rollback and recovery. Live mode is opt-in, requires
+your model/key/database, sends data to OpenAI and may incur charges. Its small
+synthetic dataset is a mechanics demonstration, not evidence of production ROI.

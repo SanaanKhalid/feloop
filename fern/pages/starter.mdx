@@ -1,0 +1,135 @@
+---
+title: Classification starter
+---
+
+# Verified corrections → improved classification prompt
+
+A standalone, copyable example. It is **not Opsentry**, a hosted service or a trained
+model. The core SDK has no provider dependency; `provider.ts` supplies a small
+provider-neutral interface and an OpenAI Responses implementation using native fetch.
+
+## Offline, no credentials
+
+From the repository root, `npm ci`, then:
+
+```sh
+npm run starter -- demo
+npm run starter -- demo --reject
+npm run starter -- demo --interrupt
+```
+
+These are deterministic simulated providers, not cached live responses. The fixture
+proposer generates a fragment; the evaluator runs baseline/candidate predictions and
+counts actual exact matches. No improvement numbers are hard-coded in the evaluator.
+The rejecting fixture returns worse predictions. `--interrupt` simulates response
+loss after registry application, inspects the saved receipt, then rolls back.
+Only demo explicitly approves a fixture candidate on your behalf. Ordinary recommend,
+evaluate and smoke commands never approve or deploy.
+
+## Live, explicitly selected
+
+Use an isolated **developer-owned PostgreSQL 16 or 17 database** and Node 22 or 24.
+Configure `DATABASE_URL`, a fresh `FELOOP_NAMESPACE`, `OPENAI_API_KEY` and an explicit
+`OPENAI_MODEL` through your shell/secret manager. Do not commit or paste keys into
+issues, source, prompts or reports. The selected model must support Responses strict
+structured outputs; no model is inferred for you.
+
+Model commands print a transfer/charge disclosure and require `--live`. Selected
+request text, verified correction examples or held-out fixtures are sent to OpenAI.
+`store:false` is requested; that is not a zero-retention guarantee. See
+[OpenAI structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs).
+This starter uses only synthetic examples by default, including in live mode.
+
+Optional environment limits (per command, not a durable account-wide quota):
+
+| Variable | Default |
+| --- | --- |
+| FELOOP_MAX_REQUESTS | 80 |
+| FELOOP_MAX_OUTPUT_TOKENS | 2048 per response |
+| FELOOP_MAX_INPUT_BYTES | 16384 for serialized input text |
+
+HTTP/provider failures, refusals, incomplete responses, invalid JSON/labels and
+budget exhaustion fail explicitly without automatic retries. Requests have a
+60-second transport deadline; SDK callbacks default to two minutes and the command
+to ten minutes. Cancellation remains cooperative. Reports omit credentials; treat
+captured text and reports as sensitive if you replace the fixtures with real data.
+
+## Full command sequence
+
+1. `npm run starter -- init --live` explicitly applies the SDK migration and initializes
+   the starter registry schema/baseline. Review SQL first. Construction never migrates.
+2. `npm run starter -- seed --live` runs the baseline over six synthetic correction
+   examples and records their known labels as verified fixture corrections. Rerunning
+   the same fixture/version reuses its stored prediction instead of reissuing the API call.
+3. `npm run starter -- predict --text 'Explain this receipt amount.' --live` records
+   an ordinary prediction using the registry's current prompt. Output includes execution ID.
+4. `npm run starter -- correct --execution ID --label billing --actor YOUR_REVIEWER_ID --live`
+   records an explicitly verified correction. Your app is responsible for authorizing
+   that reviewer. Unpartitioned predictions are not automatically admitted to proposal data.
+5. `npm run starter -- recommend --live` detects recurring scored failure segments,
+   drops ambiguous labels, generates one proposed fragment and prints before/after,
+   evidence and candidate ID. It does not deploy or evaluate automatically.
+6. `npm run starter -- evaluate --candidate ID --live` runs baseline and candidate
+   against the frozen, separate eight-example holdout, including two guardrail cases.
+7. Review the diff, evidence IDs/hash, dataset/model/prompt versions, measured accuracy,
+   improvement, per-class non-regression, guardrail gate, latency and token counts when
+   available. `npm run starter -- approve --candidate ID --actor YOUR_REVIEWER_ID --live`
+   explicitly approves the latest passing evaluation. Failed gates cannot be approved.
+8. `npm run starter -- deploy --candidate ID --live` changes the actual PostgreSQL
+   registry version read on subsequent predictions. Repeat predict to inspect behavior.
+9. `npm run starter -- rollback --candidate ID --live` restores the recorded predecessor.
+10. `npm run starter -- inspect --live` shows active state/candidates/attempts. For an
+    interrupted deployment, use `npm run starter -- reconcile --attempt ID --live`.
+
+Replace `ID` with the value printed by the previous relevant command, not a guessed
+identifier. Add `--report ./unique-report.json` to any command to save an exclusive,
+0600-permission JSON report. Existing reports are never overwritten.
+
+## Dataset/evaluator design
+
+`fixtures.ts` declares the correction and holdout manifests. They are disjoint by
+ID, episode, entity, text and time. The proposer receives only verified correction
+examples; it cannot see holdout examples through this workflow. Conflicting labels
+are excluded. Generated content can change only `fragment`, not labels, safety
+instructions, evaluator, acceptance thresholds, model selection or deployment policy.
+
+Replace those manifests in source with your own reviewed partitions to adapt this
+starter; it is not a general dataset-upload service. Preserve the split checks,
+increment evaluatorVersion for evaluator/threshold changes and start a fresh namespace
+for a changed dataset. Record real occurrence and observation times; historical
+fixture timestamps are explicitly synthetic, not real model-execution timestamps.
+Repeated tuning on the same holdout risks leakage; reserve a final audit set.
+
+Gates: candidate accuracy must exceed baseline by at least 0.05, no label class may
+lose correct predictions and every guardrail case must pass. These are fixed example
+gates, not calibrated statistical guarantees. The small dataset may yield no proposal
+or no passing candidate with a live model. That is a valid report, not a reason to
+replace the metrics with simulated success. Token counts are omitted if unavailable.
+
+## Recovery and registry responsibilities
+
+The registry saves prompt versions, active version and per-attempt receipts. Its
+apply/rollback transaction compares the expected version and saves the receipt with
+the external change. Inspect shares the same advisory lock and fences a missing
+attempt before returning not_applied. A later apply with a fenced key is rejected.
+
+The SDK's transaction is separate: a registry commit can succeed even when its
+receipt is not finalized in Feloop. The target remains pending and blocks changes.
+Reconciliation reads the registry receipt and completes the SDK transition without
+reapplying. Do not edit pointers/delete attempts to force progress. The tests inject
+failure at preparation/finalization, independent-client races and late operations.
+
+## Retain a real live smoke report before release
+
+After init in a fresh test namespace, explicitly run:
+
+```sh
+npm run starter -- smoke --live --report ./feloop-live-smoke.json
+```
+
+This runs live baseline capture, verified synthetic corrections, recommendation and,
+if one exists, held-out evaluation. It never silently substitutes fixtures for a
+missing key/model. Review any passing candidate and use the separate approve/deploy/
+rollback commands to complete the serving-version drill. Retain those reports too.
+Review/redact report text before committing or publishing it. No live success is
+claimed by this repository merely because offline CI passes.

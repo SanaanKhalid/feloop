@@ -1,63 +1,37 @@
 ---
 title: Improvement candidates
-description: Represent proposed changes as versioned, evidence-backed, risk-classified records.
 ---
 
-A finding says where behavior differs. A candidate says exactly what should change, why, how risky it is, and whether it has passed evaluation.
+A candidate is a proposed artifact change, not an already improved model. Its
+`target` identifies a kind/key; `proposedChange` is JSON defined by your adapter.
+`risk` defaults to medium. `evidence` records the rationale and versioned manifest;
+`metadata` can retain baseline/model/proposer versions and review context.
 
-## Target kinds
+Creation calculates immutable content (including metadata) and evidence hashes. Reusing a caller ID with
+different input fails rather than replacing it. Reconsideration requires an explicit
+new candidate identity when evidence, evaluator, model, dataset or proposal changes.
+The controller's derived IDs include evidence fingerprint, recipe/version, proposal
+and configured evaluator/dataset versions.
 
-<code>prompt</code>, <code>routing</code>, <code>rule</code>, <code>retrieval</code>, <code>model</code>, <code>dataset</code>, <code>threshold</code>, <code>tool_schema</code>, <code>workflow</code>, <code>agent_topology</code>, <code>code</code>, <code>capacity</code>, and <code>custom</code>.
+The lifecycle is proposed → evaluated → approved → deployed. Failed evaluation stays
+evaluated with a failing result; it cannot be approved. Proposed/evaluated/approved
+candidates may be rejected. A deployed candidate becomes superseded when a newer one
+applies, or rolled_back when reversed. Rolled-back candidates cannot be silently
+redeployed. Imported old history lives outside this active lifecycle.
 
-## Candidate fields
+Evaluation snapshots the current revision before calling the evaluator. When it
+returns, Feloop verifies the revision has not changed. A human rejection, a newer
+evaluation or approval wins over stale results. Approval requires the exact latest
+passing evaluation ID and the same candidate content/evidence. It records the actor
+and timestamp; the application must authorize that actor.
 
-| Field | Purpose |
-| --- | --- |
-| target.kind | Change surface |
-| target.key | Stable logical identity, separate from a version |
-| proposedChange | JSON-safe patch, version descriptor, training specification, or structured plan |
-| evidence | Finding, examples, replay set, metrics, and provenance |
-| risk | Low, medium, high, or critical; defaults to medium |
-| metadata | Owner, recipe, experiment, expiration, or governance data |
-| evaluations | Append-only evaluator results |
-| status | Proposed, evaluated, approved, deployed, rejected, or superseded |
+Mutable states use compare-and-swap revisions; candidate content cannot be edited in
+place. Create a new candidate to change its prompt or evidence. Evaluation versions
+and dataset hashes are mandatory strings supplied by your evaluator pipeline: the
+SDK cannot verify that a supplied hash honestly describes external data.
 
-## Create from a finding
-
-~~~ts
-const candidate = await loop.createCandidateFromFinding({
-  finding,
-  target: { kind: "prompt", key: "support-core" },
-  proposedChange: {
-    from: "support-core@18",
-    to: "support-core@19",
-    instruction:
-      "Separate disabling MFA from deleting registered authentication methods.",
-  },
-  risk: "medium",
-  metadata: {
-    owner: "ai-platform",
-    expiresAt: "2026-10-01T00:00:00.000Z",
-  },
-});
-~~~
-
-## Lifecycle invariants
-
-- Only a candidate whose latest evaluation passed can be approved.
-- Only an approved candidate can be marked deployed.
-- Deploying supersedes the currently deployed candidate with the same namespace, target kind, and target key.
-- A deployed candidate is rolled back, not rejected.
-- Rollback restores the most recently superseded version when one exists.
-- Rejected, deployed, and superseded candidates cannot be evaluated again.
-
-## Risk classification
-
-Classify risk from the maximum credible impact, not the expected impact.
-
-| Risk | Typical examples |
-| --- | --- |
-| low | Reversible read-only route weight, bounded cache, low-blast-radius prompt canary |
-| medium | Prompt behavior change, retrieval source change, workflow ordering |
-| high | New model checkpoint, dataset update, mutating tool selection, agent topology |
-| critical | Authorization, identity, safety policy, medical or financial action, control-plane modification |
+Supported target kinds include prompt, routing, rule, retrieval, model, dataset,
+threshold, tool_schema, workflow, agent_topology, code, capacity and custom. These are
+representation categories, not built-in integrations. Experimental auto-apply is
+restricted to low-risk **prompt and routing**; other kinds remain available for
+recommendation, evaluation and explicit manual deployment with suitable adapters.

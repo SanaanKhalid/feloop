@@ -1,37 +1,49 @@
 ---
 title: Security and privacy
-description: Protect sensitive production evidence and keep optimization authority bounded.
 ---
 
-A feedback store can contain production inputs, model outputs, human corrections, and downstream outcomes. Treat it as a sensitive system of record.
+Feloop sends no telemetry. The core does not call any provider. The optional live
+starter sends selected text to OpenAI using your key; it requires explicit live
+selection and configured model. `store:false` is not zero retention, consent or
+compliance certification. Review provider terms and your data governance first.
 
-## Minimum controls
+## Before persistence
 
-1. Redact secrets, credentials, and unnecessary personal data before capture.
-2. Use pseudonymous entity identifiers and store re-identification maps elsewhere.
-3. Separate observability retention from training consent and training retention.
-4. Restrict raw payload access; prefer aggregate findings and redacted samples.
-5. Version models, prompts, policies, authorizers, and application releases.
-6. Authenticate correction sources and validate their authority.
-7. Never let user-controlled content directly rewrite prompts, rules, schemas, or training sets.
-8. Sign or authenticate deployable artifact versions and deployment events.
-9. Keep authorization, tool allowlists, risk policy, and evaluator code outside the learned artifact.
+Configure `maximumPayloadBytes` (default 262,144) and a deterministic
+`sanitize(json) → json` hook on the client. Inputs and sanitized outputs are validated;
+if the hook throws, no raw fallback is saved. Capture, completions, candidates,
+evaluation results and deployment receipts use the hook. Hook failure during receipt
+finalization leaves an external outcome pending, to reconcile after remediation.
 
-## Threat model
+The hook is not a full PII detector or access-control engine. Avoid secrets in record
+IDs, namespaces, actor IDs, reasons and artifact/version identifiers; these operational
+fields are not anonymized automatically. Delete raw sensitive fields before they reach
+the SDK. A sanitizer must preserve required identities, hashes and receipt bindings.
+Store only data you have authority to retain and send to your chosen processors.
 
-| Threat | Example | Controls |
-| --- | --- | --- |
-| Feedback poisoning | Coordinated false ratings | Source trust, rate limits, entity breadth, anomaly detection, verified outcomes, review |
-| Prompt injection | Transcript contains deployment instructions | Data-only parsing, structured proposals, isolated generation, policy gates, no ambient credentials |
-| Cross-tenant leakage | Evidence or candidate crosses a namespace | Core namespace validation, row-level authorization, namespace-scoped deployment |
-| Unsafe optimization | Latency improves by skipping safety checks | Independent hard constraints that cannot be traded away |
-| Runaway changes | Optimizer repeatedly applies variants | Candidate budgets, stable deduplication, risk ceilings, rollout limits, cooldowns, stop switch |
-| Evaluator capture | Proposer weakens the test that judges it | Independent evaluator ownership and separate candidate lifecycle |
+## Trust boundaries
 
-## Regulated and high-impact use
+Namespace binding prevents accidental unscoped SDK access; it does not authenticate
+the caller or stop a malicious process holding the database credentials. Authorize
+namespace and target access in your service. Use distinct development/production
+namespaces and least-privilege database/provider/deployment credentials.
 
-For medical, employment, credit, legal, safety, or other high-impact decisions, retain accountable qualified humans, validate applicable regulatory obligations, and use domain-specific evaluation and monitoring. The framework alone is not evidence that a system is safe or compliant.
+Verify correction sources. Treat prompts, examples and model outputs as untrusted
+data, not instructions that may change policy, evaluator thresholds or deployment
+authorization. Conflicting/poisoned feedback can degrade a system even when JSON is
+valid. Keep human review and independent holdouts appropriate to the risk.
 
-## Data deletion and training provenance
+Callbacks are ordinary JavaScript. Timeouts are cooperative cancellation, not a
+sandbox, resource jail or forced kill. Isolate untrusted callbacks separately. Risk
+labels are supplied by trusted recipes; auto-apply is experimental and narrowly scoped.
 
-Every training record should retain a reference to its source evidence, validation state, consent basis, redaction version, and dataset manifests. This enables later exclusion, erasure, or relabeling without reconstructing the entire pipeline.
+## Deletion and reporting
+
+`loop.deleteNamespace(exactNamespace)` explicitly erases that namespace's Feloop
+history. Stop writers and reconcile pending deployments first. This does not remove
+external artifacts, OpenAI copies, logs or backups. No automated retention service runs.
+
+Report security issues through the repository's private vulnerability-reporting flow
+when enabled. If unavailable, request a private channel without posting secrets or
+exploit details in a public issue. See `SECURITY.md`. The maintainer must verify that
+reporting is enabled before public launch. There is no alpha SLA or security certification.

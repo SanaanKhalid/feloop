@@ -1,106 +1,55 @@
 ---
 title: TypeScript API
-description: Public Feloop classes, methods, contracts, and deterministic test hooks.
-layout: reference
 ---
+
+The package's generated declarations are the precise source of type signatures.
+Import core types/classes from `feloop`, database helpers from `feloop/postgres`,
+and conformance tests from `feloop/testing`. Core never imports the latter modules.
+The source implementation is in the repository's `src/` directory.
 
 ## FeedbackLoop
 
-| Method | Behavior |
+Construct with `{store, namespace, maximumPayloadBytes?, callbackTimeoutMs?,
+sanitize?, clock?, deploymentsEnabled?}`. Required store version is 2; namespace
+must be a non-empty string. Defaults: payload 262,144 bytes, callback 120,000 ms.
+
+| Method | Contract |
 | --- | --- |
-| <code>new FeedbackLoop(store, options?)</code> | Create a loop with optional clock and ID hooks |
-| <code>recordExecution(input)</code> | Validate hierarchy and store an execution |
-| <code>completeExecution(id, input?)</code> | Add output, merge metadata, and set completion time |
-| <code>recordSignal(input)</code> | Validate attribution and confidence, then store evidence |
-| <code>analyze(options)</code> | Return recurring segment findings |
-| <code>createCandidate(input)</code> | Create a proposal from arbitrary evidence |
-| <code>createCandidateFromFinding(input)</code> | Copy finding evidence into a proposal |
-| <code>evaluateCandidate(id, name, evaluator)</code> | Append evaluation and move to evaluated |
-| <code>approveCandidate(id)</code> | Approve when the latest evaluation passed |
-| <code>deployCandidate(id)</code> | Mark approved candidate deployed and supersede previous |
-| <code>rejectCandidate(id, reason?)</code> | Reject a non-deployed candidate |
-| <code>rollbackCandidate(id)</code> | Supersede deployed candidate and restore previous |
-| <code>getExecution(id)</code> | Return one execution |
-| <code>getCandidate(id)</code> | Return one candidate |
-| <code>listCandidates(options?)</code> | Filter by namespace, target key, and status |
-| <code>close()</code> | Close the configured store |
+| recordExecution(input) | Insert-only capture, idempotent identical caller ID |
+| completeExecution(id,input,expectedRevision) | CAS output/metadata/completedAt update |
+| recordSignal(input) | Insert-only scoped signal with verified-by-application source |
+| getExecution(id), getCandidate(id) | Scoped reads, undefined if absent |
+| list(collection,pageOptions) | Scoped page, default 100 / max 1,000 |
+| analyze(options) | Bounded evidence snapshot and descriptive findings |
+| createCandidate(input) | Immutable proposed content/evidence hashes |
+| evaluateCandidate(id,context,evaluator) | Versioned callback; stale results discarded |
+| `approveCandidate(id,{actor,evaluationId})` | Exact latest passing evaluation only |
+| rejectCandidate(id,reason) | Explicit rejection from pre-deployment states |
+| `deployCandidate(id,{adapter,expectedArtifactVersion?,signal?})` | Durable attempt and coordinated external application |
+| `rollbackCandidate(id,{adapter,signal?})` | Reverse active version to explicit predecessor |
+| reconcileAttempt(id,adapter,signal?) | Inspect pending outcome, never blindly replay |
+| getActiveCandidate(target) | Current recorded active candidate, not a live provider inspection |
+| deleteNamespace(confirmation) | Exact-name explicit deletion; coordinate stopped writers first |
+| close() | Release store resources; PostgreSQL pool stays application-owned |
 
-## Execution kinds
+The client exposes its namespace/store for advanced integration. Direct store access
+is trusted adapter-level access, not a way to bypass lifecycle invariants safely.
+Do not manually alter targets/attempts/candidate states.
 
-~~~ts
-type ExecutionKind =
-  | "agent"
-  | "turn"
-  | "inference"
-  | "prediction"
-  | "tool"
-  | "workflow"
-  | "retrieval"
-  | "custom";
-~~~
+## Other exports
 
-## Signal kinds
+`SelfImprovementController(loop).run(input)` accepts analysis, policy, recipes and
+optional evaluator/evaluation identity, deploymentAdapter and signal. The default
+autonomy is recommend. See [controller policy](/closing-the-loop/governed-self-improvement).
 
-~~~ts
-type SignalKind =
-  | "rating"
-  | "correction"
-  | "outcome"
-  | "reward"
-  | "approval"
-  | "tool_result"
-  | "custom";
-~~~
+`InMemoryStore()` and `JsonFileStore(path)` are development adapters.
+`PostgresStore(pool)` and explicit `migratePostgres(pool)` implement the reference
+database path. `runStoreConformance(store)` creates/deletes only random test namespaces.
+`importLegacyV1(loop, document)` imports scoped executions/signals and archives old
+candidate history without activation. See the repository migration guide.
 
-## Candidate contracts
-
-~~~ts
-type CandidateRisk = "low" | "medium" | "high" | "critical";
-
-type CandidateStatus =
-  | "proposed"
-  | "evaluated"
-  | "approved"
-  | "deployed"
-  | "rejected"
-  | "superseded";
-~~~
-
-## Analyzer options
-
-~~~ts
-interface AnalyzeOptions {
-  namespace: string;
-  dimensions: string[];
-  maximumDimensionDepth?: number;
-  executionKinds?: ExecutionKind[];
-  signalNames?: string[];
-  signalKinds?: SignalKind[];
-  since?: string;
-  until?: string;
-  minimumSupport?: number;
-  minimumScoredCount?: number;
-  minimumEffectSize?: number;
-  minimumRecurrence?: number;
-  minimumDistinctEntities?: number;
-  timeBucket?: "day" | "week" | "month";
-  includeEpisodeSignals?: boolean;
-  entityPath?: string;
-  score?: (signal: FeedbackSignal) => number | undefined;
-}
-~~~
-
-## Deterministic tests
-
-~~~ts
-let counter = 0;
-
-const loop = new FeedbackLoop(new InMemoryStore(), {
-  clock: () => new Date("2026-09-03T12:00:00.000Z"),
-  idFactory: (prefix) => prefix + "_" + ++counter,
-});
-~~~
-
-## SelfImprovementController
-
-<code>run(input)</code> returns the autonomy level, findings, candidates, deployed candidates, and observable blocks. Experiment and apply modes require an evaluator. Apply mode also requires a deployer.
+`FeloopError.code` includes invalid_input, invalid_store, conflict, not_found,
+invalid_transition, integrity_error, namespace_mismatch, query_limit and timeout.
+Deployment uncertainty exposes code deployment_pending and attemptId, with the
+original cause retained. Do not classify all errors as retryable. A timeout may have
+dispatched an external action; only inspection establishes the outcome.

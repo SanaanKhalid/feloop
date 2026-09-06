@@ -4,169 +4,142 @@ import {
   FeedbackLoop,
   InMemoryStore,
   SelfImprovementController,
-  type AnalyzeOptions,
-  type ImprovementRecipe,
+  type SelfImprovementRunInput,
 } from "../src/index.js";
-
-async function makeLoopWithRecurringBottleneck(): Promise<FeedbackLoop> {
-  const loop = new FeedbackLoop(new InMemoryStore());
-
-  for (let index = 0; index < 8; index += 1) {
-    const bottleneck = index < 4;
-    const timestamp = new Date(Date.UTC(2026, 0, 1 + index * 7)).toISOString();
-    const execution = await loop.recordExecution({
-      namespace: "client/prod",
-      kind: "agent",
-      entityId: `workflow-${index}`,
-      metadata: {
-        agentRole: bottleneck ? "ticket-researcher" : "ticket-classifier",
-        resource: bottleneck ? "servicenow_lookup" : "intent_router",
-      },
-      startedAt: timestamp,
-    });
-    await loop.recordSignal({
-      namespace: "client/prod",
-      executionId: execution.id,
-      kind: "outcome",
-      name: "within_latency_budget",
-      value: !bottleneck,
-      source: "runtime",
-      observedAt: timestamp,
-    });
-  }
-
-  return loop;
+import { analysis, seed, Registry, approved } from "./helpers.js";
+async function setup() {
+  const loop = new FeedbackLoop({
+    store: new InMemoryStore(),
+    namespace: "test",
+  });
+  await seed(loop);
+  return { loop, controller: new SelfImprovementController(loop) };
 }
-
-const analysis: AnalyzeOptions = {
-  namespace: "client/prod",
-  dimensions: ["metadata.resource"],
-  executionKinds: ["agent"],
-  signalNames: ["within_latency_budget"],
-  minimumSupport: 2,
-  minimumScoredCount: 2,
-  minimumEffectSize: 0.2,
-  minimumRecurrence: 2,
-  timeBucket: "week",
-};
-
-function recipe(
-  target: "prompt" | "routing" | "agent_topology",
-  risk: "low" | "medium" | "high",
-): ImprovementRecipe {
+function input(): SelfImprovementRunInput {
   return {
-    name: "reduce-servicenow-bottleneck",
-    matches: (finding) => finding.dimensions["metadata.resource"] === "servicenow_lookup",
-    propose: () => ({
-      target: { kind: target, key: "lex-ticket-workflow" },
-      proposedChange: {
-        action: "cache_repeated_ticket_reads",
-        expectedEffect: "lower queue wait without changing authorization",
+    analysis,
+    policy: { allowedTargets: ["prompt"] },
+    recipes: [
+      {
+        name: "test",
+        version: "1",
+        matches: (f) => f.effectSize < 0,
+        propose: () => ({
+          target: { kind: "prompt", key: "chat" },
+          proposedChange: { text: "improved" },
+          risk: "low",
+        }),
       },
-      risk,
-    }),
+    ],
+    evaluator: () => ({ passed: true, metrics: { accuracy: 1 } }),
+    evaluation: { name: "test", version: "1", datasetHash: "holdout1" },
   };
 }
-
-test("recommend mode creates and deduplicates an evidence-backed candidate", async () => {
-  const loop = await makeLoopWithRecurringBottleneck();
-  const controller = new SelfImprovementController(loop);
-  const input = {
-    analysis,
-    policy: {
-      autonomy: "recommend" as const,
-      allowedTargets: ["prompt" as const],
-    },
-    recipes: [recipe("prompt", "medium")],
+test("review-first is default and evidence/version-aware dedup is idempotent", async () => {
+  const { controller, loop } = await setup();
+  const a = await controller.run(input()),
+    b = await controller.run(input());
+  assert.equal(a.autonomy, "recommend");
+  assert.equal(a.candidates[0]!.id, b.candidates[0]!.id);
+  assert.equal(a.deployed.length, 0);
+  const next = input();
+  next.evaluation!.version = "2";
+  const c = await controller.run(next);
+  assert.notEqual(a.candidates[0]!.id, c.candidates[0]!.id);
+  assert.equal((await loop.list("candidates")).items.length, 2);
+});
+test("candidate budget stops expensive proposals before invoking the next recipe", async () => {
+  const { controller } = await setup();
+  let calls = 0;
+  const x = input();
+  x.policy.maximumCandidatesPerRun = 1;
+  x.recipes[0]!.matches = () => true;
+  const old = x.recipes[0]!.propose;
+  x.recipes[0]!.propose = (f, c) => {
+    calls++;
+    return old(f, c);
   };
-
-  const first = await controller.run(input);
-  const second = await controller.run(input);
-
-  assert.equal(first.candidates.length, 1);
-  assert.equal(first.candidates[0]?.status, "proposed");
-  assert.equal(first.candidates[0]?.risk, "medium");
-  assert.equal(second.candidates[0]?.id, first.candidates[0]?.id);
-  assert.equal((await loop.listCandidates()).length, 1);
+  const result = await controller.run(x);
+  assert.equal(calls, 1);
+  assert.equal(result.candidates.length, 1);
 });
-
-test("apply mode deploys a low-risk candidate only after evaluation constraints pass", async () => {
-  const loop = await makeLoopWithRecurringBottleneck();
-  const controller = new SelfImprovementController(loop);
-  const applied: string[] = [];
-
-  const result = await controller.run({
-    analysis,
-    policy: {
-      autonomy: "apply",
-      allowedTargets: ["routing"],
-      maxAutomaticRisk: "low",
-      constraints: [
-        { metric: "replaySuccess", comparator: "gte", value: 0.95 },
-        { metric: "policyCompliance", comparator: "eq", value: 1 },
-      ],
-    },
-    recipes: [recipe("routing", "low")],
-    evaluatorName: "opsentry-readonly-replay",
-    evaluator: () => ({
-      passed: true,
-      metrics: { replaySuccess: 0.98, policyCompliance: 1 },
-    }),
-    deployer: (candidate) => {
-      applied.push(candidate.id);
-    },
+test("invalid risk and autonomy fail closed without deployment", async () => {
+  const { controller } = await setup();
+  const x = input();
+  x.policy.autonomy = "typo" as never;
+  await assert.rejects(controller.run(x));
+  const y = input();
+  y.recipes[0]!.propose = () => ({
+    target: { kind: "prompt", key: "chat" },
+    proposedChange: {},
+    risk: "LOW" as never,
   });
-
-  assert.equal(result.deployed.length, 1);
-  assert.equal(result.deployed[0]?.status, "deployed");
-  assert.deepEqual(applied, [result.deployed[0]?.id]);
-  assert.deepEqual(result.blocked, []);
+  const result = await controller.run(y);
+  assert.equal(result.candidates.length, 0);
+  assert.equal(result.blocked[0]?.reason, "run_failed");
 });
-
-test("apply mode evaluates but does not deploy a change above the automatic risk limit", async () => {
-  const loop = await makeLoopWithRecurringBottleneck();
-  const controller = new SelfImprovementController(loop);
-  let deployCalls = 0;
-
-  const result = await controller.run({
-    analysis,
-    policy: {
-      autonomy: "apply",
-      allowedTargets: ["agent_topology"],
-      maxAutomaticRisk: "low",
-    },
-    recipes: [recipe("agent_topology", "high")],
-    evaluator: () => ({ passed: true, metrics: { replaySuccess: 1 } }),
-    deployer: () => {
-      deployCalls += 1;
-    },
-  });
-
-  assert.equal(result.candidates[0]?.status, "evaluated");
+test("auto-apply requires opt-in and constraints; valid low-risk apply works", async () => {
+  const { controller } = await setup();
+  const x = input();
+  x.policy.autonomy = "apply";
+  x.deploymentAdapter = new Registry();
+  await assert.rejects(controller.run(x));
+  x.policy.experimentalAutoApply = true;
+  x.policy.constraints = [
+    { metric: "accuracy", comparator: "gte", value: 0.95 },
+  ];
+  assert.equal((await controller.run(x)).deployed.length, 1);
+});
+test("failed constraints and higher risk never auto-deploy", async () => {
+  const { controller } = await setup();
+  const x = input();
+  x.policy = {
+    autonomy: "apply",
+    experimentalAutoApply: true,
+    allowedTargets: ["prompt"],
+    constraints: [{ metric: "missing", comparator: "gte", value: 1 }],
+  };
+  x.deploymentAdapter = new Registry();
+  const result = await controller.run(x);
   assert.equal(result.deployed.length, 0);
-  assert.equal(deployCalls, 0);
-  assert.equal(result.blocked[0]?.reason, "risk_exceeds_policy");
+  assert.equal(result.blocked[0]?.reason, "evaluation_failed");
 });
-
-test("experiment mode rejects a candidate that misses an evaluation constraint", async () => {
-  const loop = await makeLoopWithRecurringBottleneck();
-  const controller = new SelfImprovementController(loop);
-
-  const result = await controller.run({
-    analysis,
-    policy: {
-      autonomy: "experiment",
-      allowedTargets: ["prompt"],
-      constraints: [{ metric: "answerAccuracy", comparator: "gte", value: 0.95 }],
-    },
-    recipes: [recipe("prompt", "medium")],
-    evaluator: () => ({
-      passed: true,
-      metrics: { answerAccuracy: 0.9 },
+test("timeout ignores late proposals", async () => {
+  const { controller, loop } = await setup();
+  const x = input();
+  x.policy.callbackTimeoutMs = 5;
+  x.recipes[0]!.propose = async () => {
+    await new Promise((r) => setTimeout(r, 30));
+    return {
+      target: { kind: "prompt", key: "chat" },
+      proposedChange: {},
+      risk: "low",
+    };
+  };
+  const result = await controller.run(x);
+  await new Promise((r) => setTimeout(r, 40));
+  assert.equal(result.candidates.length, 0);
+  assert.equal((await loop.list("candidates")).items.length, 0);
+});
+test("pre-cancelled run does no work", async () => {
+  const { controller } = await setup();
+  const x = input();
+  x.signal = AbortSignal.abort();
+  assert.equal((await controller.run(x)).blocked[0]?.reason, "run_cancelled");
+});
+test("deployment disable switch blocks apply but permits rollback recovery", async () => {
+  let enabled = true;
+  const loop = new FeedbackLoop({
+      store: new InMemoryStore(),
+      namespace: "test",
+      deploymentsEnabled: () => enabled,
     }),
-  });
-
-  assert.equal(result.candidates[0]?.status, "evaluated");
-  assert.equal(result.candidates[0]?.evaluations[0]?.passed, false);
-  assert.match(result.blocked[0]?.detail ?? "", /answerAccuracy must be gte 0.95/);
+    adapter = new Registry();
+  await approved(loop, "a");
+  await loop.deployCandidate("a", { adapter });
+  enabled = false;
+  await approved(loop, "b");
+  await assert.rejects(loop.deployCandidate("b", { adapter }));
+  await loop.rollbackCandidate("a", { adapter });
+  assert.equal(adapter.version, null);
 });

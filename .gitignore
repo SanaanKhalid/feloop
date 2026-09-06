@@ -4,4 +4,9 @@ dist/
 coverage/
 .DS_Store
 *.log
-
+.env
+.env.*
+!.env.example
+.doccheck-*/
+*.tgz
+*.tsbuildinfo

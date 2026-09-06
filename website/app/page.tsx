@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { docsHref } from '../lib/docs-links';
 
 function Mark() {
   return (
@@ -22,32 +23,35 @@ function SiteHeader() {
         <a href="#autonomy">Autonomy</a>
         <a href="#safety">Safety</a>
       </nav>
-      <a href="/docs/" className="nav-cta">
+      <a href={docsHref()} className="nav-cta">
         DOCS <span aria-hidden="true">↗</span>
       </a>
     </header>
   );
 }
 
-const code = `const loop = new FeedbackLoop(store)
+const code = `import { FeedbackLoop, InMemoryStore } from "feloop"
+
+const loop = new FeedbackLoop({
+  store: new InMemoryStore(), // local demo
+  namespace: "acme/dev"
+})
 
 const turn = await loop.recordExecution({
-  namespace: "acme/prod",
   kind: "agent",
   artifacts: { prompt: "support@18" }
 })
 
 await loop.recordSignal({
   executionId: turn.id,
+  kind: "outcome",
   name: "resolved",
   value: true,
   source: "ticket-system"
 })
 
-await controller.run({
-  policy: { autonomy: "experiment" },
-  evaluator: replaySuite
-})`;
+// Next: connect your database and evaluator.
+// Recommendations do not deploy automatically.`;
 
 const loopSteps = [
   ["01", "Capture", "Record the decisions, tools, models, and versions behind every outcome."],
@@ -66,7 +70,7 @@ export default function Home() {
     <main>
       <div className="announcement">
         <span className="pulse-dot" />
-        OPEN SOURCE · MODEL-AGNOSTIC · ZERO RUNTIME DEPENDENCIES
+        MIT-LICENSED ALPHA · MODEL-AGNOSTIC · ZERO CORE RUNTIME DEPENDENCIES
       </div>
       <div className="page-shell">
         <SiteHeader />
@@ -79,7 +83,7 @@ export default function Home() {
               Feloop connects production behavior to verified outcomes, finds recurring failure modes, and turns evidence into governed improvements.
             </p>
             <div className="hero-actions">
-              <a href="/docs/" className="button button-primary">READ THE DOCS <span>→</span></a>
+              <a href={docsHref()} className="button button-primary">READ THE DOCS <span>→</span></a>
               <a href="#how-it-works" className="button button-ghost">EXPLORE THE LOOP</a>
             </div>
             <p className="hero-note">Embed it in an existing worker. Keep your models, database, and deployment stack.</p>
@@ -93,8 +97,8 @@ export default function Home() {
             <pre><code>{code}</code></pre>
             <div className="console-result">
               <span>●</span>
-              <div><strong>candidate evaluated</strong><small>accuracy +12.4% · policy compliance 100%</small></div>
-              <b>PASS</b>
+              <div><strong>Review first. Measure before deployment.</strong><small>Connect your evaluator · inspect every proposed change</small></div>
+              <b>ALPHA</b>
             </div>
           </div>
 
@@ -130,9 +134,9 @@ export default function Home() {
             <div className="section-label">[ TRACE THE WHOLE SYSTEM ]</div>
             <h2>See the model—and everything around it.</h2>
             <p>Executions form a tree. Trace the root agent, delegated agents, retrievals, model calls, and tools inside one episode. The bottleneck might be a prompt. It might be a queue.</p>
-            <a href="/docs/#execution-model" className="text-link">EXPLORE THE EXECUTION MODEL <span>→</span></a>
+            <a href={docsHref('execution-model')} className="text-link">EXPLORE THE EXECUTION MODEL <span>→</span></a>
           </div>
-          <div className="trace-diagram" role="img" aria-label="Hierarchical AI execution trace">
+          <figure className="trace-diagram" aria-label="Illustrative hierarchical AI execution trace" style={{ margin: 0 }}>
             <div className="trace-root"><span className="node-dot hot" />ROOT AGENT<small>episode_1042</small></div>
             <div className="trace-children">
               <div className="trace-node"><span className="node-dot" />CLASSIFIER<small>124 ms</small></div>
@@ -140,8 +144,8 @@ export default function Home() {
               <div className="trace-node"><span className="node-dot" />RESPONSE<small>438 ms</small></div>
             </div>
             <div className="trace-tool"><span className="node-dot warn" />EXTERNAL LOOKUP<small>queue wait: 1,316 ms</small><b>BOTTLENECK</b></div>
-            <div className="trace-caption"><span />Recurring across 42 episodes · confidence 0.96</div>
-          </div>
+            <figcaption className="trace-caption"><span />Illustrative trace · not measured customer results</figcaption>
+          </figure>
         </section>
 
         <section className="section autonomy-section" id="autonomy">
@@ -153,13 +157,13 @@ export default function Home() {
           <div className="mode-list">
             <div className="mode-row"><span>01</span><strong>OBSERVE</strong><p>Detect and rank findings.</p><b>NO MUTATION</b></div>
             <div className="mode-row"><span>02</span><strong>RECOMMEND</strong><p>Create reviewable improvement candidates.</p><b>HUMAN REVIEW</b></div>
-            <div className="mode-row"><span>03</span><strong>EXPERIMENT</strong><p>Run replay, benchmarks, or shadow evaluation.</p><b>SANDBOX ONLY</b></div>
-            <div className="mode-row selected"><span>04</span><strong>APPLY</strong><p>Deploy reversible changes that pass every gate.</p><b>WITHIN POLICY</b></div>
+            <div className="mode-row"><span>03</span><strong>EXPERIMENT</strong><p>Run your evaluator. Callbacks are application-owned, not sandboxed.</p><b>NO AUTO-DEPLOY</b></div>
+            <div className="mode-row selected"><span>04</span><strong>APPLY</strong><p>Explicitly opt in to low-risk prompt and routing changes.</p><b>EXPERIMENTAL</b></div>
           </div>
         </section>
 
         <section className="targets-section">
-          <div className="section-label">[ WHAT CAN IMPROVE ]</div>
+          <div className="section-label">[ CANDIDATE TYPES · IMPLEMENTATIONS PROVIDED THROUGH ADAPTERS ]</div>
           <div className="ticker" aria-label="Supported improvement targets">
             {targets.map((target) => <span key={target}>{target}<i>↗</i></span>)}
           </div>
@@ -168,13 +172,13 @@ export default function Home() {
         <section className="safety-section" id="safety">
           <div>
             <div className="section-label">[ GOVERNED BY DEFAULT ]</div>
-            <h2>The system can optimize inside the boundary. It cannot rewrite the boundary.</h2>
+            <h2>Your evidence. Your policies. Your decision to deploy.</h2>
           </div>
           <div className="safety-grid">
-            <article><span>01</span><h3>Explicit risk ceiling</h3><p>Every candidate is classified from low to critical. Automatic application stops above the configured limit.</p></article>
-            <article><span>02</span><h3>Deterministic gates</h3><p>Accuracy, latency, cost, privacy, and policy constraints all have to pass before promotion.</p></article>
-            <article><span>03</span><h3>Protected invariants</h3><p>Authorization, tenant isolation, approvals, and tool allowlists stay outside learned artifacts.</p></article>
-            <article><span>04</span><h3>Versioned rollback</h3><p>Every deployment keeps its evidence and predecessor, making regressions explainable and reversible.</p></article>
+            <article><span>01</span><h3>Explicit risk ceiling</h3><p>Recipes declare risk. Experimental automatic application accepts only low-risk prompts and routing.</p></article>
+            <article><span>02</span><h3>Versioned evaluation</h3><p>Approval references the exact candidate, evidence, evaluator version, and passing evaluation.</p></article>
+            <article><span>03</span><h3>Application-owned boundaries</h3><p>Keep authentication, authorization, tool allowlists, and evaluator code outside generated artifacts.</p></article>
+            <article><span>04</span><h3>Recoverable deployment</h3><p>Transactional state, explicit predecessors, and adapter receipts support inspection and rollback after failures.</p></article>
           </div>
         </section>
 
@@ -183,13 +187,13 @@ export default function Home() {
           <div className="section-label">[ CLOSE THE LOOP ]</div>
           <h2>Your model is replaceable.<br />Your learning loop compounds.</h2>
           <p>Start with one execution, one outcome, and one recurring pattern.</p>
-          <a href="/docs/" className="button button-primary">GET STARTED <span>→</span></a>
+          <a href={docsHref('installation')} className="button button-primary">GET STARTED <span>→</span></a>
         </section>
 
         <footer className="site-footer">
           <div className="brand"><Mark /><span>Feloop</span></div>
           <p>A lightweight control plane for measurable AI improvement.</p>
-          <div><a href="/docs/">Docs</a><a href="#how-it-works">Architecture</a><span>v0.1.0</span></div>
+          <div><a href={docsHref()}>Docs</a><a href="https://github.com/SanaanKhalid/feloop">GitHub</a><span>v0.2.0-alpha.1</span></div>
         </footer>
       </div>
     </main>

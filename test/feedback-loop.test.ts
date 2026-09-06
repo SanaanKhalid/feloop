@@ -3,192 +3,312 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { FeedbackLoop, InMemoryStore, JsonFileStore } from "../src/index.js";
-
-test("records a hierarchical execution and validates signal namespaces", async () => {
-  const loop = new FeedbackLoop(new InMemoryStore());
-  const turn = await loop.recordExecution({
-    namespace: "client/prod",
-    kind: "turn",
-    episodeId: "ticket-1",
-    input: { message: "Inspect the ticket" },
-  });
-  const tool = await loop.recordExecution({
-    namespace: "client/prod",
-    kind: "tool",
-    episodeId: "ticket-1",
-    parentExecutionId: turn.id,
-    input: { tool: "get_servicenow_ticket" },
-  });
-
-  await loop.recordSignal({
-    namespace: "client/prod",
-    executionId: tool.id,
-    kind: "tool_result",
-    name: "tool_success",
-    value: true,
-    source: "runtime",
-  });
-
+import {
+  FeedbackLoop,
+  InMemoryStore,
+  JsonFileStore,
+  type CreateCandidateInput,
+} from "../src/index.js";
+import type { MemoryState } from "../src/stores/in-memory.js";
+import { runStoreConformance } from "../src/testing.js";
+import { Registry, approved, seed, analysis } from "./helpers.js";
+const make = () =>
+  new FeedbackLoop({ store: new InMemoryStore(), namespace: "test" });
+test("in-memory adapter conformance", async () => {
+  assert.equal((await runStoreConformance(new InMemoryStore())).length, 8);
+});
+test("JSON conformance and reopen persistence", async () => {
+  const path = await mkdtemp(join(tmpdir(), "feloop-json-"));
+  const file = join(path, "state.json");
+  const store = new JsonFileStore(file);
+  try {
+    await runStoreConformance(store);
+    const loop = new FeedbackLoop({ store, namespace: "saved" });
+    await loop.recordExecution({ id: "persisted", kind: "turn" });
+    await store.close();
+    const next = new JsonFileStore(file);
+    assert.ok(
+      await new FeedbackLoop({ store: next, namespace: "saved" }).getExecution(
+        "persisted",
+      ),
+    );
+    await next.close();
+    assert.equal(JSON.parse(await readFile(file, "utf8")).version, 2);
+  } finally {
+    await store.close();
+    await rm(path, { recursive: true, force: true });
+  }
+});
+test("IDs cannot overwrite another namespace and conflicting input is rejected", async () => {
+  const store = new InMemoryStore(),
+    a = new FeedbackLoop({ store, namespace: "a" }),
+    b = new FeedbackLoop({ store, namespace: "b" });
+  await a.recordExecution({ id: "shared", kind: "turn" });
+  await b.recordExecution({ id: "shared", kind: "tool" });
+  assert.equal((await a.getExecution("shared"))?.kind, "turn");
+  await assert.rejects(a.recordExecution({ id: "shared", kind: "prediction" }));
+});
+test("runtime validation rejects malformed risk, dates, JSON and old unscoped inputs", async () => {
+  const loop = make();
+  await assert.rejects(
+    loop.createCandidate({
+      target: { kind: "prompt", key: "x" },
+      proposedChange: {},
+      evidence: {},
+      risk: "LOW",
+    } as unknown as CreateCandidateInput),
+  );
+  for (const startedAt of ["invalid", "2026-02-30T00:00:00Z"])
+    await assert.rejects(loop.recordExecution({ kind: "turn", startedAt }));
+  await assert.rejects(loop.recordExecution({ kind: "turn", input: NaN }));
+  await assert.rejects(
+    loop.recordExecution({ kind: "turn", namespace: "wrong" } as never),
+  );
   await assert.rejects(
     loop.recordSignal({
-      namespace: "other/prod",
-      executionId: tool.id,
       kind: "rating",
-      name: "helpful",
-      value: true,
-      source: "operator",
+      name: "x",
+      source: "test",
+      value: 1,
+      executionId: "absent",
     }),
-    /same namespace/,
   );
 });
-
-test("detects a recurring negative segment with correction consensus", async () => {
-  const loop = new FeedbackLoop(new InMemoryStore());
-  const namespace = "client/prod";
-
-  for (let index = 0; index < 20; index += 1) {
-    const isMfa = index < 10;
-    const timestamp = new Date(Date.UTC(2026, 0, 1 + index * 3)).toISOString();
-    const execution = await loop.recordExecution({
-      namespace,
-      kind: "turn",
-      entityId: `operator-${index % 4}`,
-      metadata: { task: isMfa ? "mfa" : "group" },
-      startedAt: timestamp,
-    });
-    await loop.recordSignal({
-      namespace,
-      executionId: execution.id,
-      kind: isMfa ? "correction" : "rating",
-      name: "correct",
-      value: !isMfa,
-      ...(isMfa ? { correction: { intent: "delete_auth_methods" } } : {}),
-      source: "operator",
-      observedAt: timestamp,
-    });
-  }
-
-  const findings = await loop.analyze({
-    namespace,
-    dimensions: ["metadata.task"],
-    executionKinds: ["turn"],
-    signalNames: ["correct"],
-    minimumSupport: 5,
-    minimumScoredCount: 5,
-    minimumEffectSize: 0.2,
-    minimumRecurrence: 2,
-    minimumDistinctEntities: 2,
-    timeBucket: "week",
+test("sanitization runs before persistence and failures never fall through", async () => {
+  const store = new InMemoryStore();
+  const bad = new FeedbackLoop({
+    store,
+    namespace: "x",
+    sanitize: () => {
+      throw new Error("redaction unavailable");
+    },
   });
-
-  const mfa = findings.find((finding) => finding.dimensions["metadata.task"] === "mfa");
-  assert.ok(mfa);
-  assert.equal(mfa.support, 10);
-  assert.equal(mfa.meanScore, 0);
-  assert.equal(mfa.baselineScore, 0.5);
-  assert.equal(mfa.effectSize, -0.5);
-  assert.equal(mfa.correctionCounts['{"intent":"delete_auth_methods"}'], 10);
-  assert.ok((mfa.confidence ?? 0) > 0.9);
+  await assert.rejects(bad.recordExecution({ kind: "turn" }));
+  assert.equal((await bad.list("executions")).items.length, 0);
+  const good = new FeedbackLoop({
+    store,
+    namespace: "x",
+    sanitize: (value) => ({ ...(value as object), input: "[redacted]" }),
+  });
+  assert.equal(
+    (await good.recordExecution({ kind: "turn", input: "secret" })).input,
+    "[redacted]",
+  );
+  const small = new FeedbackLoop({
+    store,
+    namespace: "x",
+    maximumPayloadBytes: 40,
+  });
+  await assert.rejects(
+    small.recordExecution({ kind: "turn", input: "x".repeat(100) }),
+  );
 });
-
-test("attributes an episode outcome to a selected execution kind", async () => {
-  const loop = new FeedbackLoop(new InMemoryStore());
-  const turn = await loop.recordExecution({
-    namespace: "client/prod",
-    kind: "turn",
-    episodeId: "ticket-1",
-    metadata: { route: "identity" },
+test("concurrent deployments cannot leave two active candidates", async () => {
+  const loop = make(),
+    adapter = new Registry();
+  await approved(loop, "a");
+  await approved(loop, "b");
+  const results = await Promise.allSettled([
+    loop.deployCandidate("a", { adapter }),
+    loop.deployCandidate("b", { adapter }),
+  ]);
+  assert.equal(results.filter((r) => r.status === "fulfilled").length, 1);
+  assert.equal(
+    (await loop.list("candidates")).items.filter((c) => c.status === "deployed")
+      .length,
+    1,
+  );
+  assert.equal(adapter.applications, 1);
+});
+test("repeated rollback follows A <- B <- C and never restores rolled-back C", async () => {
+  const loop = make(),
+    adapter = new Registry();
+  for (const key of ["a", "b", "c"]) {
+    await approved(loop, key);
+    await loop.deployCandidate(key, { adapter });
+  }
+  await loop.rollbackCandidate("c", { adapter });
+  assert.equal(
+    (await loop.getActiveCandidate({ kind: "prompt", key: "chat" }))?.id,
+    "b",
+  );
+  await loop.rollbackCandidate("b", { adapter });
+  assert.equal(
+    (await loop.getActiveCandidate({ kind: "prompt", key: "chat" }))?.id,
+    "a",
+  );
+  assert.equal((await loop.getCandidate("c"))?.status, "rolled_back");
+  await loop.rollbackCandidate("a", { adapter });
+  assert.equal(adapter.version, null);
+  assert.equal(
+    await loop.getActiveCandidate({ kind: "prompt", key: "chat" }),
+    undefined,
+  );
+});
+test("late evaluation cannot overwrite a human rejection", async () => {
+  const loop = make();
+  const c = await loop.createCandidate({
+    target: { kind: "prompt", key: "chat" },
+    proposedChange: {},
+    evidence: {},
   });
-  await loop.recordExecution({
-    namespace: "client/prod",
-    kind: "tool",
-    episodeId: "ticket-1",
-    parentExecutionId: turn.id,
+  let release!: () => void;
+  let entered!: () => void;
+  const pending = new Promise<void>((r) => {
+    release = r;
   });
+  const start = new Promise<void>((r) => {
+    entered = r;
+  });
+  const evaluation = loop.evaluateCandidate(
+    c.id,
+    { evaluator: "test", version: "1", datasetHash: "h" },
+    async () => {
+      entered();
+      await pending;
+      return { passed: true };
+    },
+  );
+  await start;
+  await loop.rejectCandidate(c.id, "human rejected");
+  release();
+  await assert.rejects(evaluation, /changed/);
+  assert.equal((await loop.getCandidate(c.id))?.status, "rejected");
+});
+test("approval is bound to latest evaluation and concurrent approval conflicts", async () => {
+  const loop = make();
+  const c = await approved(loop, "a");
+  await assert.rejects(
+    loop.approveCandidate(c.id, {
+      actor: "other",
+      evaluationId: c.evaluations[0]!.id,
+    }),
+  );
+  await assert.rejects(
+    loop.evaluateCandidate(
+      c.id,
+      { evaluator: "test", version: "2", datasetHash: "h" },
+      () => ({ passed: true }),
+    ),
+  );
+});
+test("persistence failure after apply reconciles without applying twice", async () => {
+  class FailingStore extends InMemoryStore {
+    failOnce = true;
+    protected override async persist(next: MemoryState) {
+      if (
+        this.failOnce &&
+        Object.values(next.test?.attempts ?? {}).some(
+          (a) => a.status === "succeeded",
+        )
+      ) {
+        this.failOnce = false;
+        throw new Error("disk failure");
+      }
+    }
+  }
+  const loop = new FeedbackLoop({
+      store: new FailingStore(),
+      namespace: "test",
+    }),
+    adapter = new Registry();
+  await approved(loop, "a");
+  await assert.rejects(loop.deployCandidate("a", { adapter }), /pending/);
+  const attempt = (await loop.list("attempts")).items[0]!;
+  assert.equal(attempt.status, "pending");
+  await assert.rejects(loop.deployCandidate("a", { adapter }));
+  await loop.reconcileAttempt(attempt.id, adapter);
+  assert.equal(adapter.applications, 1);
+  assert.equal((await loop.getCandidate("a"))?.status, "deployed");
+});
+test("zero-confidence signals cannot pass effect or support thresholds", async () => {
+  const loop = make();
+  await seed(loop, 0);
+  assert.deepEqual(await loop.analyze(analysis), []);
+});
+test("one episode outcome remains one scored unit, not five independent outcomes", async () => {
+  const loop = make();
+  for (let i = 0; i < 5; i++)
+    await loop.recordExecution({
+      kind: "turn",
+      episodeId: "one",
+      metadata: { segment: "one" },
+    });
   await loop.recordSignal({
-    namespace: "client/prod",
-    episodeId: "ticket-1",
     kind: "outcome",
-    name: "ticket_resolved",
-    value: true,
-    source: "servicenow",
+    episodeId: "one",
+    name: "resolved",
+    value: false,
+    source: "test",
   });
-
-  const findings = await loop.analyze({
-    namespace: "client/prod",
-    dimensions: ["metadata.route"],
-    executionKinds: ["turn"],
+  assert.deepEqual(
+    await loop.analyze({
+      ...analysis,
+      minimumSupport: 1,
+      minimumScoredCount: 5,
+      minimumEffectSize: 0,
+    }),
+    [],
+  );
+  const [f] = await loop.analyze({
+    ...analysis,
     minimumSupport: 1,
     minimumScoredCount: 1,
+    minimumEffectSize: 0,
+  });
+  assert.equal(f!.uniqueSignalCount, 1);
+  assert.equal(f!.scoredCount, 1);
+  assert.equal(f!.episodeCount, 1);
+});
+test("late outcomes are included independently of execution cohort dates", async () => {
+  const loop = make();
+  const e = await loop.recordExecution({
+    kind: "turn",
+    startedAt: "2026-01-01T00:00:00Z",
+    metadata: { segment: "old" },
+  });
+  await loop.recordSignal({
+    executionId: e.id,
+    kind: "outcome",
+    name: "resolved",
+    value: false,
+    source: "test",
+    observedAt: "2026-02-01T00:00:00Z",
+  });
+  const findings = await loop.analyze({
+    ...analysis,
+    observationWindow: {
+      from: "2026-02-01T00:00:00Z",
+      to: "2026-02-02T00:00:00Z",
+    },
+    minimumSupport: 1,
+    minimumScoredCount: 1,
+    minimumEffectSize: 0,
   });
   assert.equal(findings.length, 1);
-  assert.equal(findings[0]?.scoredCount, 1);
 });
-
-test("evaluates, deploys, supersedes, and rolls back candidates", async () => {
-  const loop = new FeedbackLoop(new InMemoryStore());
-
-  async function deploy(version: string) {
-    const candidate = await loop.createCandidate({
-      namespace: "client/prod",
-      target: { kind: "prompt", key: "lex-core" },
-      proposedChange: { version },
-      evidence: { source: "test" },
-    });
-    await loop.evaluateCandidate(candidate.id, "test", () => ({
-      passed: true,
-      metrics: { accuracy: 1 },
-    }));
-    await loop.approveCandidate(candidate.id);
-    return loop.deployCandidate(candidate.id);
-  }
-
-  const first = await deploy("18");
-  const second = await deploy("19");
-  assert.equal((await loop.getCandidate(first.id))?.status, "superseded");
-  assert.equal(second.status, "deployed");
-
-  const restored = await loop.rollbackCandidate(second.id);
-  assert.equal(restored?.id, first.id);
-  assert.equal(restored?.status, "deployed");
-  assert.equal((await loop.getCandidate(second.id))?.status, "superseded");
+test("analysis limits and invalid score callbacks fail explicitly", async () => {
+  const loop = make();
+  await seed(loop);
+  await assert.rejects(
+    loop.analyze({ ...analysis, maximumRecords: 2 }),
+    /exceeds/,
+  );
+  await assert.rejects(loop.analyze({ ...analysis, score: () => NaN }));
 });
-
-test("persists local development state in the JSON store", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "ai-feedback-loop-"));
-  const filePath = join(directory, "state.json");
-
-  try {
-    const writer = new FeedbackLoop(new JsonFileStore(filePath));
-    const execution = await writer.recordExecution({
-      id: "exec-persisted",
-      namespace: "local/dev",
-      kind: "prediction",
-      input: { value: 1 },
-    });
-    await writer.recordSignal({
-      namespace: "local/dev",
-      executionId: execution.id,
-      kind: "outcome",
-      name: "correct",
-      value: true,
-      source: "test",
-    });
-    await writer.close();
-
-    const raw = JSON.parse(await readFile(filePath, "utf8")) as {
-      executions: unknown[];
-      signals: unknown[];
-    };
-    assert.equal(raw.executions.length, 1);
-    assert.equal(raw.signals.length, 1);
-
-    const reader = new FeedbackLoop(new JsonFileStore(filePath));
-    assert.equal((await reader.getExecution("exec-persisted"))?.namespace, "local/dev");
-    await reader.close();
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
+test("new evidence changes manifest fingerprint; confidence output is absent", async () => {
+  const loop = make();
+  await seed(loop);
+  const before = (await loop.analyze(analysis))[0]!;
+  await loop.recordSignal({
+    executionId: "e0",
+    kind: "correction",
+    name: "correct",
+    value: false,
+    correction: "corrected",
+    source: "operator",
+  });
+  const after = (await loop.analyze(analysis))[0]!;
+  assert.notEqual(before.evidence.fingerprint, after.evidence.fingerprint);
+  assert.equal("confidence" in after, false);
 });
-

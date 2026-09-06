@@ -1,146 +1,76 @@
 ---
 title: Quickstart
-description: Record an AI execution, attach feedback, analyze a recurring segment, and create a candidate.
 ---
 
-## Requirements
+Use Node 22 or 24. Before publication, access to the repository is required:
 
-- Node.js 22 or newer
-- TypeScript with ESM support
-- The current Feloop repository (local folder: `ai-feedback-loop`)
-
-The package is currently private and has not been published to npm.
-
-## Install from source
-
-~~~bash
-git clone YOUR_REPOSITORY_URL
-cd ai-feedback-loop
-npm install
-npm run typecheck
+```sh
+git clone https://github.com/SanaanKhalid/feloop.git
+cd feloop
+npm ci
 npm test
-~~~
+npm run starter -- demo
+npm run starter -- demo --reject
+```
 
-## Create a loop
+Both demos use a deterministic **simulated provider, not OpenAI**. Metrics are
+calculated from predictions against held-out fixtures. The first fixture demo
+explicitly approves its candidate, changes a registry-selected prompt and rolls it
+back. The second demonstrates a failed gate. Neither is a claimed live-model result.
 
-Use <code>InMemoryStore</code> for unit tests and disposable examples. Use <code>JsonFileStore</code> only for local, single-process development.
+For a consumer before publication, run `npm pack` in this checkout and install the
+generated tarball. After the separate release action, install
+`npm install feloop@0.2.0-alpha.1`. Do not assume that version already exists on npm.
 
-~~~ts
-import { FeedbackLoop, JsonFileStore } from "feloop";
+## Connect your PostgreSQL database
 
-const loop = new FeedbackLoop(
-  new JsonFileStore(".feedback-loop/local.json"),
-);
-~~~
+Install `pg` in the consuming application. Provision the database yourself. Review
+`migrations/001-feedback-store.sql`; apply it with a migration identity, not on every
+request. The equivalent explicit helper is shown below. Constructors never migrate.
 
-## Record an execution
+```typescript
+import { Pool } from 'pg';
+import { FeedbackLoop } from 'feloop';
+import { PostgresStore, migratePostgres } from 'feloop/postgres';
 
-An execution should contain enough structured context to attribute later outcomes to the exact system behavior and versions that produced it.
-
-~~~ts
-const turn = await loop.recordExecution({
-  namespace: "acme/prod",
-  kind: "turn",
-  episodeId: "ticket-1842",
-  entityId: "operator-hash",
-  input: {
-    message: "Remove MFA for this user",
-  },
-  output: {
-    intent: "disable_per_user_mfa",
-  },
-  artifacts: {
-    model: "model@4",
-    prompt: "support-core@18",
-    router: "intent-router@7",
-    policy: "approval-policy@8",
-    application: "support-app@0.1.0",
-  },
-  metadata: {
-    task: "identity.mfa",
-    route: "identity",
-  },
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) throw new Error('Set DATABASE_URL explicitly.');
+const pool = new Pool({ connectionString });
+await migratePostgres(pool);
+const loop = new FeedbackLoop({ store: new PostgresStore(pool), namespace: 'support/dev' });
+const prediction = await loop.recordExecution({
+  id: 'ticket-1-prediction', kind: 'prediction', episodeId: 'ticket-1',
+  input: { text: 'Please explain this charge.' }, output: { label: 'other' },
+  artifacts: { prompt: 'intent-v1', model: 'your-configured-model' },
 });
-~~~
-
-## Attach a correction
-
-Preserve both the original output and the verified replacement target.
-
-~~~ts
 await loop.recordSignal({
-  namespace: turn.namespace,
-  executionId: turn.id,
-  kind: "correction",
-  name: "operator_correct",
-  value: false,
-  correction: {
-    intent: "delete_authentication_methods",
-    firstTool: "list_user_authentication_methods",
-  },
-  source: "operator",
-  confidence: 1,
+  id: 'ticket-1-review', executionId: prediction.id, kind: 'correction',
+  name: 'verified_correct', value: false, correction: { label: 'billing' },
+  source: 'authorized-reviewer',
 });
-~~~
-
-## Find recurring patterns
-
-~~~ts
-const findings = await loop.analyze({
-  namespace: "acme/prod",
-  dimensions: [
-    "metadata.task",
-    "metadata.route",
-    "artifacts.prompt",
-  ],
-  maximumDimensionDepth: 2,
-  executionKinds: ["turn"],
-  signalNames: ["operator_correct", "ticket_resolved"],
-  minimumSupport: 20,
-  minimumScoredCount: 10,
-  minimumEffectSize: 0.1,
-  minimumRecurrence: 3,
-  minimumDistinctEntities: 2,
-  entityPath: "entityId",
-  timeBucket: "week",
-});
-~~~
-
-## Create and evaluate a candidate
-
-~~~ts
-const candidate = await loop.createCandidateFromFinding({
-  finding: findings[0]!,
-  target: {
-    kind: "prompt",
-    key: "support-core",
-  },
-  proposedChange: {
-    from: "support-core@18",
-    to: "support-core@19",
-    instruction:
-      "Separate disabling per-user MFA from deleting registered authentication methods.",
-  },
-  risk: "medium",
-});
-
-const evaluated = await loop.evaluateCandidate(
-  candidate.id,
-  "historical-replay@3",
-  async (candidate) => replayCandidate(candidate),
-);
-
-if (evaluated.evaluations.at(-1)?.passed) {
-  await loop.approveCandidate(candidate.id);
-  await applyVersionPointer(candidate);
-  await loop.deployCandidate(candidate.id);
-}
-~~~
-
-The external change happens in <code>applyVersionPointer</code>. <code>deployCandidate</code> records lifecycle state only.
-
-## Close resources
-
-~~~ts
 await loop.close();
-~~~
+await pool.end();
+```
+
+One correction is not enough evidence to propose a change. Collect independent
+episodes with verified labels before choosing analysis thresholds.
+
+## Complete live starter
+
+The [classification starter](/get-started/classification-starter) is the complete command runbook (also included in the repository).
+Set `DATABASE_URL`, `FELOOP_NAMESPACE`, `OPENAI_API_KEY`, `OPENAI_MODEL` privately.
+No default model is guessed. Live model commands require `--live`, send selected
+text to OpenAI, may incur charges and default to 80 requests/2,048 output tokens
+per request per command. `store:false` is not a zero-retention guarantee.
+
+Run `init --live`, `seed --live`, `recommend --live`, `evaluate --candidate ID --live`,
+review the result, then `approve --candidate ID --actor NAME --live` and
+`deploy --candidate ID --live`. Each is preceded by `npm run starter --`.
+Use `predict --text TEXT --live` to confirm the active registry version is used.
+Use `rollback --candidate ID --live` or `reconcile --attempt ID --live` for recovery.
+
+Only the synthetic correction split is seeded automatically. Replace the source
+fixture manifest with independently reviewed data before making customer claims;
+preserve episode/entity/time isolation and version the evaluator/dataset. Arbitrary
+unpartitioned predictions are captured, but are not automatically admitted as training
+examples. A live run may return **no candidate passed**; that is a valid result.

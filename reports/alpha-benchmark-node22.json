@@ -1,0 +1,17 @@
+{
+  "dataset": "fixed-v1",
+  "mode": "synthetic",
+  "node": "v22.23.2",
+  "platform": "darwin",
+  "arch": "arm64",
+  "executions": 10000,
+  "signals": 10000,
+  "episodes": 5000,
+  "findings": 43,
+  "elapsedMs": 371.43995799999993,
+  "heapBeforeBytes": 30561800,
+  "heapAfterBytes": 49352016,
+  "rssAfterBytes": 173047808,
+  "processMaxRssKiB": 170208,
+  "limitation": "One in-memory snapshot on a fixed dataset; not a general throughput or peak-analysis-memory guarantee."
+}

@@ -1,7 +1,15 @@
 {
   "name": "feloop",
-  "version": "0.1.0",
-  "private": true,
+  "version": "0.2.0-alpha.1",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SanaanKhalid/feloop.git"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "alpha"
+  },
   "description": "A lightweight, model-agnostic feedback loop for production AI systems.",
   "type": "module",
   "main": "./dist/src/index.js",
@@ -10,28 +18,50 @@
     ".": {
       "types": "./dist/src/index.d.ts",
       "import": "./dist/src/index.js"
+    },
+    "./postgres": {
+      "types": "./dist/src/postgres.d.ts",
+      "import": "./dist/src/postgres.js"
+    },
+    "./testing": {
+      "types": "./dist/src/testing.d.ts",
+      "import": "./dist/src/testing.js"
     }
   },
   "bin": {
-    "feloop": "./dist/src/cli.js",
-    "ai-feedback-loop": "./dist/src/cli.js"
+    "feloop": "./dist/src/cli.js"
   },
   "files": [
     "dist/src",
-    "README.md"
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "SECURITY.md",
+    "SUPPORTED.md",
+    "docs/migration.md",
+    "migrations"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "prepack": "npm run build",
+    "starter": "npm run build && node dist/examples/prompt-improvement/cli.js",
+    "test:postgres": "npm run build && node --test dist/test/postgres.test.js",
+    "test:package": "node scripts/package-smoke.mjs",
+    "test:docs": "node scripts/check-docs.mjs",
+    "test:fern": "node scripts/check-fern.mjs",
+    "benchmark": "npm run build && node dist/examples/benchmark.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npm run build && node --test dist/test/*.test.js",
     "example:opsentry": "npm run build && node dist/examples/opsentry.js",
     "example:self-improving": "npm run build && node dist/examples/self-improving-agent.js"
   },
   "engines": {
-    "node": ">=22"
+    "node": "^22.0.0 || ^24.0.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
+    "@types/pg": "^8.15.0",
+    "pg": "^8.16.0",
     "typescript": "^5.9.0"
   }
 }

@@ -1,50 +1,53 @@
 ---
-title: Production operation
-description: Run capture, analysis, evaluation, and deployment as an observable asynchronous control plane.
+title: Operating the alpha
 ---
 
-Keep capture fast and move analysis, proposal generation, evaluation, and deployment outside the user request path.
+This alpha supports Node 22/24 and the PostgreSQL 16/17 reference adapter. Use a
+customer-owned database and a tested deployment adapter; development JSON/memory
+stores are not a production durability story. The package is ESM and not intended
+for browsers, edge runtimes or untrusted plugins running in the same process.
 
-~~~text
-request path                 data plane                 control plane
-AI application  --------->  FeedbackStore  <--------- scheduled controller
-  record execution            durable records           analyze
-  attach signal               namespace scope           propose
-  return response                                      evaluate
-                                                       deploy
-~~~
+## Before enabling writes
 
-## Recommended cadence
+Review and explicitly run SQL migrations. Configure authorization, redaction,
+payload/query limits, source verification, least-privilege credentials, TLS and backups.
+Keep model calls and deployments outside database transactions. Do not reuse one
+namespace for unrelated tenants or mix synthetic and real evidence in the same cohort.
 
-- **Per request:** enqueue a sanitized execution record.
-- **On outcome:** attach a signal by execution or episode ID, even days later.
-- **Hourly or daily:** run analysis for high-volume workflows.
-- **Daily or weekly:** create candidates after recurrence and breadth thresholds pass.
-- **Continuously:** run deterministic unit, schema, and safety checks.
-- **On approval:** run shadow, canary, or bounded rollout.
-- **After deployment:** monitor objective and guardrail signals until the evaluation window closes.
+Start in recommend mode. Freeze a held-out dataset and independent evaluation gates.
+Review the actual diff, evidence counts, model/prompt/dataset versions and evaluation
+report. Human approval is an application authorization decision; the SDK records the
+actor and exact passing evaluation, not the actor's real-world identity.
 
-## Operational telemetry
+## Day-to-day operation
 
-Track:
+The application invokes the controller and owns scheduling. Page `events` for
+candidate.created/evaluated/approved/rejected and deployment.pending/succeeded/not_applied
+events. Forward structured controller blocked reasons to your logger. Events are
+durable records, not a guaranteed push-delivery service. Maintain your own event
+consumer checkpoint/idempotency and monitoring.
 
-- capture failures and ingestion lag;
-- unattributed signal rate;
-- analysis duration and finding counts;
-- candidates by status, target, and risk;
-- evaluator and constraint failures;
-- deployment failures and reconciliation age;
-- rollback rate and time to approval;
-- post-deployment effect, cost, latency, and safety;
-- storage growth, retention, and deletion backlog.
+Alert on pending attempts, failed gates, sustained database errors, provider refusals,
+budget exhaustion and drift in the serving version. Disable new deployments during
+incidents while retaining inspection/rollback capability. An unknown inspection can
+remain blocked indefinitely until authoritative external evidence is available.
 
-Alert on broken attribution, authorization failures, sudden shifts in feedback distribution, unexpected candidate volume, or a control-plane component changing its own configuration.
+Bound analysis with windows and maximumRecords. Dimension depth is at most two and
+the default query cap is 20,000 per collection. The fixed synthetic benchmark records
+elapsed time and memory for one local dataset; it is not a throughput guarantee.
+Measure your database, concurrency, payload size and latency before expanding limits.
 
-## Maturity ladder
+## Release gates
 
-1. **Instrument.** Capture only and validate data quality.
-2. **Recommend.** Humans inspect findings and candidates.
-3. **Experiment.** Automate replay, safety, and shadow evaluation.
-4. **Bounded apply.** Automate reversible, low-risk, mature change types.
+CI checks the SDK, store conformance, independent-process PostgreSQL races, fault
+injection, simulated starter, actual npm tarball installation, runnable docs, Fern,
+website type/lint/build and dependency audits. Node 22/24 × PostgreSQL 16/17 form the
+supported test matrix. Missing database credentials skip local PG tests; dedicated
+CI jobs configure a disposable database and must not skip them.
 
-Do not choose autonomy based only on confidence in the model. Base it on evidence quality, evaluator coverage, reversibility, blast radius, authorization maturity, and operational rollback readiness.
+Before release, explicitly enable and retain one **live-model** smoke report. Fixtures
+cannot substitute for missing credentials. No candidate passing is valid; fabricated
+improvement is not. Confirm npm identity/name rights, MIT contents, private security
+reporting, intended GitHub/website visibility and the `alpha` tag separately.
+Actual npm publication, repository visibility changes, Fern/website publication and
+release announcements are intentional release actions, not test side effects.

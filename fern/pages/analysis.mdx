@@ -1,89 +1,55 @@
 ---
 title: Pattern analysis
-description: Convert isolated production feedback into recurring, evidence-backed findings.
 ---
 
-The analyzer segments executions by JSON-path dimensions, joins matching signals, scores them, compares each segment with the namespace baseline, and applies support, recurrence, breadth, and effect thresholds.
+The analyzer groups structured execution attributes, joins eligible signals through
+indexes, and prioritizes recurring scored segments. It does not embed or understand
+arbitrary conversations, prove causality or estimate a probability of improvement.
 
-## Example
-
-~~~ts
+```typescript
+import { FeedbackLoop, InMemoryStore } from 'feloop';
+const loop = new FeedbackLoop({ store: new InMemoryStore(), namespace: 'analysis/dev' });
 const findings = await loop.analyze({
-  namespace: "acme/prod",
-  dimensions: [
-    "metadata.task",
-    "metadata.route",
-    "artifacts.prompt",
-  ],
-  maximumDimensionDepth: 2,
-  executionKinds: ["turn"],
-  signalNames: ["operator_correct", "ticket_resolved"],
-  minimumSupport: 20,
-  minimumScoredCount: 10,
-  minimumEffectSize: 0.10,
-  minimumRecurrence: 3,
-  minimumDistinctEntities: 2,
-  entityPath: "metadata.operatorIdHash",
-  timeBucket: "week",
+  dimensions: ['metadata.intent', 'artifacts.prompt'], maximumDimensionDepth: 2,
+  signalNames: ['verified_correct'], minimumSupport: 5, minimumScoredCount: 5,
+  minimumRecurrence: 2, minimumEffectSize: 0.05, timeBucket: 'week',
+  observationWindow: { from: '2026-03-01T00:00:00Z', to: '2026-04-01T00:00:00Z' },
+  maximumRecords: 20000,
 });
-~~~
+console.log(findings); // Empty until enough eligible scored evidence exists.
+await loop.close();
+```
 
-## Algorithm
+## Exact alpha semantics
 
-1. Read executions and signals inside the namespace and time window.
-2. Apply execution-kind and signal filters.
-3. Generate every dimension combination up to <code>maximumDimensionDepth</code>.
-4. Attach direct and, unless disabled, episode-level signals.
-5. Convert eligible signals into numeric scores weighted by signal confidence.
-6. Calculate the baseline across all selected evidence.
-7. Remove segments below support, scored count, recurrence, entity breadth, or effect thresholds.
-8. Rank findings by absolute effect multiplied by the square root of scored count.
+Within each episode (or execution without an episode), unique positive-weight signals
+form a weighted mean. The unit weight is the average signal weight, so long episodes
+do not get extra votes merely for having more turns. The global baseline uses all
+eligible scored units in the selected cohort, including the segment under inspection.
+`effectSize = segment mean - baseline mean`. `minimumEffectSize` gates its **absolute**
+magnitude. A recipe must select the direction relevant to its objective.
 
-## Options and defaults
-
-| Option | Default | Meaning |
-| --- | --- | --- |
-| dimensions | required | JSON paths used as segment keys |
-| maximumDimensionDepth | min(dimensions, 2) | Largest dimension combination |
-| minimumSupport | 5 | Minimum unique matching executions |
-| minimumScoredCount | 2 | Minimum scoreable signals |
-| minimumEffectSize | 0 | Minimum absolute segment-versus-baseline difference |
-| minimumRecurrence | 1 | Minimum distinct time buckets |
-| minimumDistinctEntities | 0 | Minimum unique affected entities |
-| timeBucket | week | Day, week, or month |
-| includeEpisodeSignals | true | Include delayed episode-level evidence |
-
-## Default scoring
-
-Booleans become 1 or 0. Finite numbers remain numeric. Common positive strings such as <code>correct</code>, <code>resolved</code>, and <code>approved</code> become 1. Common negative strings such as <code>incorrect</code>, <code>reopened</code>, and <code>denied</code> become 0.
-
-Use a custom scorer for latency, cost, multi-objective weighting, and metrics where lower is better.
-
-~~~ts
-score: (signal) => {
-  if (signal.name === "latency_ms" && typeof signal.value === "number") {
-    return Math.max(0, 1 - signal.value / 5000);
-  }
-  if (signal.name === "resolved") {
-    return signal.value === true ? 1 : 0;
-  }
-  return undefined;
-}
-~~~
-
-## Finding metrics
-
-| Metric | Meaning |
+| Field | Meaning |
 | --- | --- |
-| support | Unique matching executions |
-| scoredCount | Signals converted into numeric scores |
-| meanScore | Confidence-weighted score inside the segment |
-| baselineScore | Confidence-weighted score across selected evidence |
-| effectSize | Segment mean minus baseline |
-| confidence | Approximate normal confidence for segment versus rest |
-| recurrence | Number of day, week, or month buckets containing evidence |
-| distinctEntities | Breadth across users, operators, accounts, devices, or another entity path |
-| correctionCounts | Frequency of each stable structured correction |
-| counterexampleExecutionIds | Better-performing executions useful for contrast and replay |
+| executionCount | All executions in the structured segment |
+| uniqueSignalCount | Distinct eligible scored signal IDs in the segment |
+| episodeCount | Distinct episodes represented by eligible units |
+| support / scoredCount | Eligible episode/execution scoring units, not turns |
+| effectiveWeight | Sum of normalized unit weights; not a statistical effective sample size |
+| meanScore / baselineScore / effectSize | Descriptive weighted comparisons |
+| recurrence | UTC observation-time buckets containing eligible scored evidence |
+| distinctEntities | Entities represented by eligible units |
+| correctionCounts | A corrected JSON value counted at most once per unit |
 
-The confidence result is a prioritization heuristic, not a causal claim. Correlated samples, selection bias, label drift, and repeated evidence from one episode can overstate certainty. Require an evaluation or controlled experiment before promotion.
+Recurrence is not proof the same negative effect repeated in every bucket. If your
+policy needs that, evaluate it independently. No scored evidence means no finding;
+zero weight never passes support, recurrence or effect gates. NaN/infinity fail explicitly.
+
+Choose 1–8 dimensions and depth 1 or 2. Page size is at most 1,000; analysis defaults
+to at most 20,000 records **per collection before signal/kind filtering**. It throws
+`query_limit` on overflow instead of silently analyzing a truncated dataset. Narrow
+windows or explicitly raise the limit only after measuring your workload.
+
+Evidence manifests have version 1, sorted record IDs, both windows and a fingerprint
+covering scored values, record revisions and baseline evidence. New evidence can
+produce a new candidate. There is deliberately no `Finding.confidence` output.

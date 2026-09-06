@@ -16,7 +16,7 @@ logo:
 
 colors:
   accent-primary:
-    light: "#5d8f00"
+    light: "#355400"
     dark: "#c6ff59"
   background:
     light: "#f7f8f5"
@@ -60,6 +60,10 @@ navigation:
         path: pages/quickstart.mdx
       - page: Architecture
         path: pages/architecture.mdx
+      - page: Classification starter
+        path: pages/starter.mdx
+      - page: Supported capabilities
+        path: pages/supported.mdx
   - section: Core concepts
     contents:
       - page: Executions and episodes
@@ -88,6 +92,8 @@ navigation:
         path: pages/security.mdx
       - page: Production operation
         path: pages/production.mdx
+      - page: Migrating from the prototype
+        path: pages/migration.mdx
   - section: Reference
     contents:
       - page: TypeScript API

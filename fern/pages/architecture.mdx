@@ -1,64 +1,46 @@
 ---
 title: Architecture
-description: Understand the framework boundary, records, adapters, and end-to-end control flow.
 ---
 
-## Core boundary
+Feloop lives inside your Node application. It never opens a listening server or
+schedules itself. Your infrastructure owns ingestion, credentials, database, jobs,
+model calls, deployments and operations.
 
-Feloop is an embedded coordination library. It owns the durable vocabulary and lifecycle between production execution and application-controlled improvement.
-
-~~~text
-AI application
-  |
-  +-- record execution tree -----------+
-  +-- attach feedback and outcomes ----+--> FeedbackStore
-                                           |
-scheduled controller <---------------------+
-  |
-  +-- analyze recurring segments
-  +-- invoke proposal recipes
-  +-- evaluate candidates in isolation
-  +-- enforce policy and risk
-  +-- call an application deployer
-  +-- record the new deployed version
-~~~
-
-## Core responsibilities
-
-- Validate execution, parent, episode, signal, and namespace relationships.
-- Preserve the model, dataset, prompt, router, tool schema, knowledge, policy, and application versions that influenced behavior.
-- Find recurring segments using configurable evidence thresholds.
-- Store candidate evidence, proposed changes, risk, evaluation results, and state.
-- Enforce lifecycle transitions and self-improvement policy.
-
-## Adapter responsibilities
-
-| Adapter | Responsibility |
+| Layer | Responsibility |
 | --- | --- |
-| FeedbackStore | Durable execution, signal, and candidate records |
-| Capture transport | Non-blocking delivery from the application request path |
-| Recipe | Convert a matching finding into one or more structured proposals |
-| Evaluator | Replay, benchmark, simulate, train, shadow, or experiment |
-| Deployer | Apply a versioned external change |
-| Scheduler | Decide when analysis and improvement runs execute |
-| Observability export | Send metrics and audit data to existing operational systems |
+| Namespace-bound client | Runtime validation, immutable creation, CAS updates, lifecycle coordination |
+| Analyzer | Indexed joins and structured segments over a bounded snapshot of evidence |
+| Controller | Calls trusted recipes/evaluators under explicit budgets and review-first policy |
+| Store adapter | Atomic, durable, namespace-serializable transactions and pagination |
+| Deployment adapter | Idempotent external apply/rollback, authoritative inspection and fencing |
+| Application | Authorization, verified labels, scheduling, secret handling, monitoring and recovery |
 
-## Why this stays lightweight
+## Persistent records
 
-The package has no required model provider, queue, vector database, training platform, or hosted control plane. The application can start in-process and introduce durable or distributed adapters only where production requirements justify them.
+Executions describe decisions and their model/prompt versions. Signals attach
+observations to an execution or episode. Candidates contain immutable proposed
+changes and evidence. Mutable candidate records carry monotonically increasing
+revisions and append evaluations; approvals reference exact evaluated content.
 
-## Trust boundaries
+A target record has at most one active candidate and one pending attempt. Attempts
+identify apply/rollback operations and expected external versions. Lifecycle events
+are insert-only within the transition transaction. Imported legacy candidate data
+is historical only, never silently active.
 
-The optimization target and the control plane must remain separate. A model or agent may propose a prompt, route, dataset, code, capacity, or topology change. It should not automatically rewrite the evaluator, authorization policy, risk ceiling, tool allowlist, secrets boundary, or deployment mechanism used to judge and constrain that proposal.
+## Transaction boundary
 
-## State flow
+1. Read and validate the candidate, evaluation, approval and target under a short transaction.
+2. Reserve the target and persist a stable pending attempt plus event; commit.
+3. Call the deployment adapter **outside** the transaction, with attempt ID as idempotency key.
+4. Validate the receipt; atomically finalize the attempt, candidate states, active pointer and event.
+5. On ambiguity, retain the reservation and inspect. Never blindly replay an external change.
 
-Candidate state transitions are explicit:
+Database and external operations cannot be made universally exactly-once by an SDK.
+Reliable reconciliation depends on the adapter. An application-owned PostgreSQL
+prompt registry in the starter demonstrates receipts and actual inference version
+selection in one database transaction.
 
-~~~text
-proposed -> evaluated -> approved -> deployed -> superseded
-             |              |
-             +-> rejected   +-> rollback restores the previous candidate
-~~~
-
-The external deployment must succeed before the framework marks a candidate deployed.
+Model and deployment callbacks never run while the SDK holds a store transaction.
+Analysis reads a bounded namespace snapshot; use narrow windows to keep reads short.
+The reference implementation serializes namespace transactions using advisory locks;
+it is correctness-first, not a claim of unlimited concurrent throughput.

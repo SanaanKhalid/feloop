@@ -1,48 +1,34 @@
 ---
 title: Signals and outcomes
-description: Attach human feedback, corrections, rewards, tool results, sensors, and delayed business outcomes.
 ---
 
-A signal is evidence observed during or after an execution. It targets one execution or an entire episode.
+Signals are immutable ratings, corrections, outcomes, rewards, approvals, tool results
+or custom observations. Every signal needs `name`, `value`, `source`, and an
+`executionId` or `episodeId`. A direct execution reference must already exist in the
+same namespace. Episode-only outcomes may arrive before all episode executions.
 
-## Signal kinds
+The SDK verifies shape and scope, not the authority of `source`. Your application
+must decide which operators can verify a correction. Rephrasing a question, clicking
+thumbs-down or observing a glucose spike is not automatically a causal ground-truth
+label. High-risk applications require domain-specific safeguards outside this SDK.
 
-- <code>rating</code>
-- <code>correction</code>
-- <code>outcome</code>
-- <code>reward</code>
-- <code>approval</code>
-- <code>tool_result</code>
-- <code>custom</code>
+Use a stable **semantic signal ID**, such as the upstream review-event ID. An identical
+ID/input retry is idempotent; conflicting input fails. Distinct IDs with identical
+text are not automatically deduplicated: they might be genuinely different reviews.
+Aggregation deduplicates the same ID before counting and normalizes within episodes.
 
-## Fields
+`confidence` is an evidence weight between zero and one, not a calibrated probability.
+Zero-weight signals may be stored for audit, but do not contribute effective support,
+score, recurrence or effect. Finite booleans/numbers and common success/failure strings
+have default scores. Other values are unscored unless your synchronous score callback
+returns a finite number. Use consistent scales and filter `signalNames`/`signalKinds`.
 
-| Field | Required | Purpose |
-| --- | --- | --- |
-| namespace | yes | Must match the targeted execution and isolation boundary |
-| executionId or episodeId | one | At least one attribution target is required |
-| kind | yes | Evidence category |
-| name | yes | Application metric, such as resolved, operator_correct, latency_ms, or glucose_delta |
-| value | yes | JSON-safe observed value |
-| correction | no | Verified replacement answer, label, route, intent, tool, or structured target |
-| source | yes | Operator, customer, evaluator, sensor, tool, or business system |
-| confidence | no | Evidence weight from 0 to 1; defaults to 1 |
-| metadata | no | Collection method, reason code, validation state, or source version |
-| observedAt | no | When the evidence became available |
+`observedAt` describes when the outcome was observed, independently of execution time.
+Analysis accepts `executionWindow` and `observationWindow` separately, each with
+inclusive `from` and exclusive `to`. Leave the execution window broad enough to admit
+the older executions referenced by delayed outcomes.
 
-## Evidence hierarchy
-
-1. **Verified correction or real-world outcome.** A confirmed label, durable resolution, successful action, sensor result, or business outcome gives an actionable target.
-2. **Approval plus successful execution.** Approval is useful when downstream behavior confirms the plan worked.
-3. **Explicit rating.** A rating prioritizes a segment but often does not identify the correct behavior.
-4. **Implicit behavior.** Restatement, abandonment, or silence can help discovery but should not become training truth without verification.
-
-## Direct and delayed attribution
-
-Use <code>executionId</code> when evidence belongs to one model call, retrieval, or tool. Use <code>episodeId</code> when the result belongs to the whole task. Episode outcomes can arrive hours or days later.
-
-When analysis selects only root turns, an episode outcome is attributed to those selected executions rather than duplicated across every child operation.
-
-## A critical training rule
-
-Never train directly on a disliked output. Pair negative evidence with an authoritative correction or omit it from supervised training. A negative signal says something went wrong; it does not say what the model should learn.
+Conflicting verified corrections are not resolved by voting automatically. The
+classification starter excludes executions with multiple distinct verified labels
+from proposal examples. Resolve disputes through your own review workflow and
+explicitly version the resulting evidence; never silently overwrite an earlier signal.

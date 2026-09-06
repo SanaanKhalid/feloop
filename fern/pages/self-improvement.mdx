@@ -1,102 +1,50 @@
 ---
 title: Governed self-improvement
-description: Close the loop with explicit autonomy, recipes, evaluations, constraints, and deployment adapters.
 ---
 
-Self-improvement is a controller over the same durable records. It is not an unrestricted recursive agent.
-
-## Autonomy levels
+The controller coordinates trusted application callbacks; it does not invent a
+training algorithm or discover reliable feedback by itself. A recipe has a name,
+version, boolean `matches(finding, context)` and `propose(finding, context)` callback.
+The latter returns zero, one or several JSON proposals. Supply an allowed-target list.
 
 | Mode | Behavior |
 | --- | --- |
-| observe | Return findings only |
-| recommend | Create deduplicated candidates for review |
-| experiment | Create and evaluate candidates but stop before approval |
-| apply | Evaluate, enforce constraints and risk, invoke the deployer, and record deployment |
+| observe | Analyze only |
+| recommend (default) | Store proposals; no evaluation, approval or deployment |
+| experiment | Evaluate candidates; no automatic deployment |
+| apply | Explicit experimental low-risk prompt/routing application after gates |
 
-## Complete controller example
+Experiment is **not a sandbox**. Callbacks execute in your process with your
+credentials. If they perform side effects, the SDK cannot prevent them. Separate
+model/evaluator/deployment privileges and isolate untrusted code yourself.
 
-~~~ts
-const controller = new SelfImprovementController(loop);
+## Budgets and cancellation
 
-const result = await controller.run({
-  analysis: {
-    namespace: "acme/prod",
-    dimensions: ["metadata.resource"],
-    executionKinds: ["tool"],
-    signalNames: ["within_latency_budget"],
-    minimumSupport: 25,
-    minimumRecurrence: 3,
-  },
-  policy: {
-    autonomy: "apply",
-    allowedTargets: ["routing"],
-    maxAutomaticRisk: "low",
-    maximumCandidatesPerRun: 3,
-    constraints: [
-      { metric: "answerAccuracy", comparator: "gte", value: 0.95 },
-      { metric: "policyCompliance", comparator: "eq", value: 1 },
-      { metric: "p95LatencyMs", comparator: "lte", value: 1800 },
-    ],
-  },
-  recipes: [deduplicateReadOnlyLookups],
-  evaluatorName: "replay-and-policy-suite@4",
-  evaluator: replayCandidateWithMockedTools,
-  deployer: updateClientScopedVersionPointer,
-});
-~~~
+Defaults are three proposal calls and three candidates per run, a ten-minute run
+deadline and a two-minute callback deadline. Budgets are checked before additional
+expensive recipe callbacks. You may configure them explicitly; limits do not
+automatically translate to a monetary/token budget. Bound provider requests too.
 
-## Controller sequence
+Callbacks receive `AbortSignal`. Cancellation/deadlines reject and discard late
+results, but cannot forcibly stop arbitrary JavaScript or undo an external request.
+A pending deployment remains reserved and needs reconciliation even if a run times out.
+The application owns the run invocation/schedule; no background daemon is started.
 
-1. Analyze and collect recurring findings.
-2. Ask every recipe whether it matches each finding.
-3. Ask matching recipes for zero, one, or several proposals.
-4. Enforce the per-run candidate budget and target allowlist.
-5. Create a stable improvement key from the finding, recipe, target, and proposed change.
-6. Reuse an open candidate or block a duplicate terminal candidate.
-7. Stop after creation in recommend mode.
-8. Evaluate and apply every metric constraint in experiment and apply modes.
-9. In apply mode, enforce the automatic risk ceiling.
-10. Approve, call the external deployer, and record deployed state only after success.
+## Experimental automatic application
 
-## Recipe contract
+Require `autonomy: 'apply'`, `experimentalAutoApply: true`, allowed targets, a
+versioned evaluator/dataset, at least one valid metric constraint and an adapter
+implementing apply, inspect and rollback. Candidate risk must be low and target
+must be prompt or routing. Missing/non-finite metrics fail constraints. Risk declarations
+come from trusted application code; they are not an independent security classifier.
 
-~~~ts
-const correctionRecipe: ImprovementRecipe = {
-  name: "clarify-recurring-intent-confusion",
-  matches: (finding) =>
-    (finding.effectSize ?? 0) < -0.10 &&
-    finding.recurrence >= 3 &&
-    finding.distinctEntities >= 2,
-  propose: async (finding) => ({
-    target: { kind: "prompt", key: "support-core" },
-    proposedChange: await generatePromptPatch({
-      dimensions: finding.dimensions,
-      correctionCounts: finding.correctionCounts,
-      counterexamples: finding.counterexampleExecutionIds,
-    }),
-    risk: "medium",
-    metadata: { owner: "ai-platform" },
-  }),
-};
-~~~
+Constraints support gte/lte/gt/lt/eq with finite thresholds. They supplement, not
+override, the evaluator's own passing result. Set `deploymentsEnabled: () => false`
+on the client to stop new application; rollback and inspection remain available for
+recovery. The switch cannot undo a previously dispatched operation.
 
-A recipe may be deterministic or call an LLM, trainer, optimizer, or coding agent. The output is still a proposal. It does not grant the proposer permission to deploy.
-
-## Policy defaults
-
-- <code>maxAutomaticRisk</code>: low
-- <code>maximumCandidatesPerRun</code>: 10
-- <code>deduplicate</code>: true
-- <code>allowedTargets</code>: required
-
-## Block reasons
-
-- <code>candidate_budget_reached</code>
-- <code>target_not_allowed</code>
-- <code>duplicate_terminal_candidate</code>
-- <code>evaluation_failed</code>
-- <code>risk_exceeds_policy</code>
-- <code>deployment_failed</code>
-
-If physical deployment fails, the candidate remains approved and the run reports a deployment failure. This makes partial failure visible and recoverable.
+Controller results expose findings, candidates, proposalCalls, deployed IDs and
+structured `blocked` reasons such as evaluation_failed, target_not_allowed,
+run_budget_reached, automatic_scope_exceeded, run_cancelled and operation_failed.
+Forward these to your logger. Persisted lifecycle events can be paged separately.
+Feloop sends no telemetry and provides no distributed run locking or scheduling SLA.

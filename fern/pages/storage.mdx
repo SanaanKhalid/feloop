@@ -1,76 +1,57 @@
 ---
 title: Storage adapters
-description: Use the built-in stores locally and implement the small FeedbackStore interface for production.
 ---
 
-The core depends on a small storage interface so the same lifecycle can run in tests, local tools, and production systems.
+Bring your own database. The core imports no driver. `feloop/postgres` accepts a
+developer-owned `pg` pool through a structural interface; install `pg` in your app.
+`migratePostgres(pool)` is an explicit setup action running versioned SQL. Construction
+does not connect, migrate, create a database or change customer tables automatically.
+The reference SQL uses Feloop-prefixed tables; review conflicts before adopting it.
 
-## Built-in stores
+## v2 contract
 
-| Store | Intended use |
-| --- | --- |
-| InMemoryStore | Unit tests, examples, and disposable process-local experiments |
-| JsonFileStore | Local development and single-process demonstrations |
+A store exposes `version: 2`, `transaction(namespace, callback)`,
+`deleteNamespace(namespace)` and `close()`. A transaction exposes generic
+`get(collection,id)`, `list(collection,options)`, `insert(collection,record)` and
+`replace(collection,record,expectedRevision)`.
 
-The JSON store is not designed for concurrent writers or distributed production workloads.
+- All reads/writes are scoped to the transaction namespace. Reject cross-namespace rows.
+- Transactions are atomic and serializable within a namespace, including independent
+  clients/processes. Failed callbacks commit nothing; callbacks/results cannot escape
+  the transaction lifetime and mutate committed state.
+- Insert is insert-only and starts at revision 1. Duplicate IDs conflict. Client-level
+  creation performs content-hash idempotency before insert.
+- Replace checks the current revision and requires exactly the next revision. Identity
+  and namespace cannot change. Signals, lifecycle events and historical records are immutable.
+- List defaults to 100, maximum 1,000, with an opaque nextCursor and stable ID order.
+  UTC windows use execution startedAt, signal observedAt, otherwise record createdAt;
+  inclusive from / exclusive to. No silent truncation or repeated cursors.
+- Namespace deletion is explicit and atomic with respect to namespace transactions.
+  Stop writers and resolve pending external operations before deleting history.
 
-## Interface
+PostgreSQL uses one checked-out connection for BEGIN, queries and COMMIT/ROLLBACK.
+Namespace advisory locks coordinate separate pools/processes. See
+[node-postgres transactions](https://node-postgres.com/features/transactions).
+Model/deployment calls occur outside store transactions. `PostgresStore.close()`
+does not end your pool; your application controls its lifetime.
 
-~~~ts
-interface FeedbackStore {
-  saveExecution(value: AiExecution): Promise<void>;
-  getExecution(id: string): Promise<AiExecution | undefined>;
-  listExecutions(options?: ExecutionListOptions): Promise<AiExecution[]>;
+## Conformance
 
-  saveSignal(value: FeedbackSignal): Promise<void>;
-  listSignals(options?: SignalListOptions): Promise<FeedbackSignal[]>;
+```typescript
+import { InMemoryStore } from 'feloop';
+import { runStoreConformance } from 'feloop/testing';
+const store = new InMemoryStore();
+console.log(await runStoreConformance(store));
+await store.close();
+```
 
-  saveCandidate(value: AdaptationCandidate): Promise<void>;
-  getCandidate(id: string): Promise<AdaptationCandidate | undefined>;
-  listCandidates(
-    options?: CandidateListOptions,
-  ): Promise<AdaptationCandidate[]>;
+Run this against your adapter in an isolated test database. It creates random
+conformance namespaces and deletes only those. It exercises scope, insert conflicts,
+rollback, CAS races, paging, transaction lifetime and deletion. Passing this baseline
+does not certify an adapter; add independent-process races, database outages,
+durability and deployment fault injection against your actual infrastructure.
 
-  close(): Promise<void>;
-}
-~~~
-
-## Production requirements
-
-- Enforce unique IDs and atomic upserts.
-- Index namespace plus time for execution and signal queries.
-- Index namespace, target key, and status for candidate operations.
-- Preserve JSON values without lossy serialization.
-- Use optimistic concurrency or transactions around candidate transitions.
-- Encrypt data in transit and at rest.
-- Enforce namespace-scoped authorization in every query and mutation.
-- Support retention, export, erasure, and audit requirements.
-
-## Suggested relational shape
-
-~~~sql
-executions(
-  id, namespace, kind, episode_id, parent_execution_id,
-  entity_id, input_json, output_json, artifacts_json,
-  metadata_json, started_at, completed_at, created_at, updated_at
-)
-
-signals(
-  id, namespace, execution_id, episode_id, kind, name,
-  value_json, correction_json, source, confidence,
-  metadata_json, observed_at, created_at
-)
-
-candidates(
-  id, namespace, target_kind, target_key,
-  proposed_change_json, evidence_json, risk, status,
-  metadata_json, lifecycle_timestamps
-)
-
-evaluations(
-  id, candidate_id, passed, metrics_json,
-  notes, evaluator, created_at
-)
-~~~
-
-For high-throughput capture, put a durable queue or streaming sink in front of the adapter. Do not block the user request path on pattern analysis.
+InMemoryStore and JsonFileStore are **development tools**. JSON uses restrictive
+file permissions and atomic replacement, but no cross-process coordination. Do not
+share one JSON file across production workers. No retention service is supplied.
+Own backups, TLS, access control, restore drills, pool limits and migration credentials.

@@ -1,54 +1,24 @@
 ---
-title: Fine-tuning
-description: Build provenance-aware datasets and treat training as one governed improvement target.
+title: Fine-tuning boundaries
 ---
 
-Fine-tuning is one possible actuator, not the feedback loop itself.
+Feloop does **not** fine-tune or train a model automatically in this alpha. A `model`
+or `dataset` candidate describes a proposed change and its evidence; it is not a
+provider training job. Captured ratings are not automatically training-ready data.
 
-## Decide what should change
+To build a future application-owned training pipeline: verify consent and labels,
+resolve contradictions, redact data, preserve episode/entity/time partitions, export
+an approved training set and retain its hash. Use your training provider's API outside
+the core. Evaluate the resulting model on a held-out audit set against a versioned
+baseline, including risk-specific false-positive/negative and guardrail checks.
 
-- Use retrieval when the answer depends on changing facts.
-- Use a deterministic rule or tool when a reliable procedure already exists.
-- Improve routing when the wrong model or workflow receives the request.
-- Fix the tool schema when arguments or semantics are ambiguous.
-- Fine-tune when repeated, well-labeled behavior should be internalized and the expected gain survives holdout evaluation.
+Then create/evaluate a model candidate and explicitly approve a deployment adapter
+that can select that model version, inspect the actual serving state and restore the
+old version. Model/dataset candidates cannot use experimental auto-apply. Training
+cost, deletion, reproducibility, drift and provider retention remain your responsibilities.
 
-## Dataset pipeline
-
-1. Discover recurring failure segments.
-2. Require an authoritative corrected answer, label, action, or outcome.
-3. Redact secrets and unnecessary personal data.
-4. Record consent, provenance, and retention controls.
-5. Deduplicate near-identical episodes and templates.
-6. Split by entity and time to reduce leakage.
-7. Create an immutable dataset manifest.
-8. Train through a provider-specific adapter.
-9. Create a model candidate for the resulting checkpoint.
-10. Evaluate against frozen holdouts, safety, cost, and latency.
-11. Register and deploy through the normal candidate lifecycle.
-
-## Dataset candidate
-
-~~~ts
-const datasetCandidate = await loop.createCandidateFromFinding({
-  finding,
-  target: {
-    kind: "dataset",
-    key: "support-intent-corrections",
-  },
-  proposedChange: {
-    manifest: "s3://training/support-intents/2026-09-03.jsonl",
-    schema: "chat-supervised@2",
-    records: 1842,
-    provenancePolicy: "verified-operator-corrections-only",
-    splitPolicy: "entity-and-time-isolated",
-  },
-  risk: "high",
-});
-~~~
-
-## Avoid training contamination
-
-Production transcripts contain noise, secrets, private data, incorrect assistant outputs, operator shorthand, and correlated examples. Do not ingest them wholesale. Maintain source provenance and the ability to remove, expire, or reclassify individual records.
-
-Treat trainer, base model, hyperparameters, dataset manifest, evaluation suite, and resulting checkpoint as independently versioned artifacts.
+The alpha's complete starter deliberately improves a bounded prompt fragment, not
+model weights. This keeps the release small and makes review, exact-match evaluation,
+version selection and rollback visible. Better prompts are not guaranteed; “no
+candidate passed” is a normal outcome. The architecture leaves training integrations
+possible without claiming to deliver them now.
