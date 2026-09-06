@@ -104,4 +104,4 @@ Use windows/query caps and measure the consuming application's real workload.
 
 See `docs/release-checklist.md` for the owner-controlled release sequence. The core
 remains dependency-free; pg and the provider implementation are outside the core.
-The alpha is a scoped library, not a hosted service, training platform or Opsentry integration.
+The alpha is a scoped library, not a hosted service or training platform.

@@ -1,4 +1,4 @@
-// Synthetic instrumentation example only. This does not connect to or change Opsentry.
+// Synthetic local feedback capture; no external application is connected.
 import { FeedbackLoop, InMemoryStore } from "../src/index.js";
 const loop = new FeedbackLoop({
   store: new InMemoryStore(),

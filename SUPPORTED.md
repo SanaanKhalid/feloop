@@ -18,4 +18,3 @@
 
 An alpha is limited in scope, not permitted to silently corrupt data. Tests exercise
 fault boundaries, but are not security, statistical, performance or compliance certification.
-No Opsentry integration is included.

@@ -1,7 +1,7 @@
 # Verified corrections → improved classification prompt
 
-A standalone, copyable example. It is **not Opsentry**, a hosted service or a trained
-model. The core SDK has no provider dependency; `provider.ts` supplies a small
+A standalone, copyable support-intent classification example. The core SDK has no
+provider dependency; `provider.ts` supplies a small
 provider-neutral interface and an OpenAI Responses implementation using native fetch.
 
 ## Offline, no credentials

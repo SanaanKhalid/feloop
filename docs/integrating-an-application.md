@@ -1,9 +1,9 @@
-# Opsentry is not integrated
+# Integrating an application
 
-No Opsentry files, databases, agents or production prompts are changed by this alpha.
-`examples/opsentry.ts` is a synthetic local capture example only.
+`examples/feedback-capture.ts` demonstrates synthetic local feedback capture.
+Feloop connects to an application through developer-owned instrumentation and adapters.
 
-If an integration is explicitly requested later, it should choose an authorized
+An integration should choose an authorized
 namespace, version predictions, record verified operator corrections (not infer
 truth from rephrasing), define a held-out evaluator, and implement a real versioned
 deployment adapter with inspection/rollback. Begin in recommendation mode. Do not
