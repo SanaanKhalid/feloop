@@ -16,6 +16,7 @@ const localBindingConfig = {
   name: 'loopiter-website',
   compatibility_date: '2026-09-03',
   workers_dev: true,
+  routes: [{ pattern: 'loopiter.co', custom_domain: true }],
   main: 'vinext/server/fetch-handler',
   compatibility_flags: ['nodejs_compat'],
   d1_databases: d1

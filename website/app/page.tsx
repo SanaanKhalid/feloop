@@ -94,7 +94,7 @@ export default function Home() {
               <div className="console-title"><span className="status-light" /> feedback-loop.ts</div>
               <span>TYPESCRIPT</span>
             </div>
-            <pre><code>{code}</code></pre>
+            <pre role="region" tabIndex={0} aria-label="TypeScript example, scroll horizontally to read"><code>{code}</code></pre>
             <div className="console-result">
               <span>●</span>
               <div><strong>Review first. Measure before deployment.</strong><small>Connect your evaluator · inspect every proposed change</small></div>
